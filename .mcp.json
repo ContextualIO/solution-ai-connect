@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "contextual-docs": {
+      "type": "http",
+      "url": "https://contextual-docs-mcp.rob-fbc.workers.dev"
+    }
+  }
+}

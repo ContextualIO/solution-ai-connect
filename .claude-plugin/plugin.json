@@ -1,0 +1,9 @@
+{
+  "name": "contextual-docs",
+  "version": "0.1.0",
+  "description": "Ground Contextual answers in docs using the contextual-docs MCP retrieval workflow.",
+  "author": {
+    "name": "Robert Velasquez"
+  },
+  "homepage": "https://docs.contextual.io/documentation-and-resources"
+}
