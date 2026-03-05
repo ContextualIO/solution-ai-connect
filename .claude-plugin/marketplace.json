@@ -1,0 +1,14 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "contextual-scratchpad",
+  "owner": {
+    "name": "Robert Velasquez"
+  },
+  "plugins": [
+    {
+      "name": "contextual-docs",
+      "source": "./",
+      "description": "Ground Contextual answers in docs using the contextual-docs MCP retrieval workflow."
+    }
+  ]
+}

@@ -22,6 +22,19 @@ Claude plugin that bundles:
 3. Upload this plugin folder (or a zip containing this folder).
 4. Install it.
 
+## Install from GitHub source (sync-enabled)
+
+If you add this repository as a **plugin source** in Claude, the source loader expects a marketplace manifest at `.claude-plugin/marketplace.json`.
+
+- Marketplace name: `contextual-scratchpad`
+- Plugin name: `contextual-docs`
+
+CLI install example:
+
+```bash
+claude plugin install contextual-docs@contextual-scratchpad
+```
+
 After install, you should see namespaced commands like:
 
 - `/contextual-docs:answer`
@@ -33,7 +46,7 @@ After install, you should see namespaced commands like:
 From this directory:
 
 ```bash
-claude --plugin-dir ./contextual-docs-plugin
+claude --plugin-dir .
 ```
 
 Then run:
