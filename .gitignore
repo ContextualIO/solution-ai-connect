@@ -12,6 +12,7 @@ coverage/
 
 .venv/
 venv/
+.local/
 __pycache__/
 *.pyc
 

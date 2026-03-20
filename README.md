@@ -1,19 +1,31 @@
 # contextual-docs plugin
 
-Claude plugin that bundles:
+Work with Contextual tenants from Claude:
 
-- the `contextual-docs` MCP connector
-- a docs-grounding skill
-- slash commands for answer, browse, and section retrieval workflows
+- set up access
+- refresh login
+- inspect tenants and flows
+- ground platform answers in docs
 
-## Included components
+This plugin includes:
+
+- a local `contextual` connector for tenant access
+- the remote `contextual-docs` connector for docs grounding
+
+## Included files
 
 - `.claude-plugin/plugin.json` - plugin manifest
-- `.mcp.json` - MCP server config
-- `skills/contextual-docs/SKILL.md` - retrieval and grounding policy
-- `commands/answer.md` - grounded Q&A flow
-- `commands/browse.md` - path/heading discovery flow
-- `commands/section.md` - exact/fuzzy section retrieval flow
+- `.claude-plugin/marketplace.json` - source install metadata
+- `.mcp.json` - local `contextual` and remote `contextual-docs` connectors
+- `skills/setup/SKILL.md` - setup skill
+- `skills/login/SKILL.md` - login skill
+- `skills/flow-context/SKILL.md` - flow summary skill
+- `skills/contextual/SKILL.md` - main operating instructions
+- `skills/contextual-flow-edit/SKILL.md` - focused flow editing guidance
+- `skills/contextual-tenant-analysis/SKILL.md` - focused tenant analysis guidance
+- `scripts/contextual_mcp.py` - local Contextual connector
+- `scripts/setup_access.sh` - access setup script
+- `scripts/contextual_login.py` - login job script
 
 ## Install in Cowork
 
@@ -22,26 +34,32 @@ Claude plugin that bundles:
 3. Upload this plugin folder (or a zip containing this folder).
 4. Install it.
 
-## Install from GitHub source (sync-enabled)
+## Install from GitHub source
 
-If you add this repository as a **plugin source** in Claude, the source loader expects a marketplace manifest at `.claude-plugin/marketplace.json`.
-
-- Marketplace name: `contextual-scratchpad`
-- Plugin name: `contextual-docs`
-
-CLI install example:
+If this repository is added as a plugin source, install with:
 
 ```bash
 claude plugin install contextual-docs@contextual-scratchpad
 ```
 
-After install, you should see namespaced commands like:
+After install, you should see namespaced skills like:
 
-- `/contextual-docs:answer`
-- `/contextual-docs:browse`
-- `/contextual-docs:section`
+- `/contextual-docs:setup`
+- `/contextual-docs:login`
+- `/contextual-docs:flow-context`
+- `/contextual-docs:contextual`
 
-## Install in Claude Code (local test)
+## First use
+
+Run:
+
+```text
+/contextual-docs:setup
+```
+
+That prepares local access and shows saved tenant configs.
+
+## Install in Claude Code
 
 From this directory:
 
@@ -49,13 +67,20 @@ From this directory:
 claude --plugin-dir .
 ```
 
-Then run:
+Example prompts:
 
 ```text
-/contextual-docs:answer explain ai generate tool call behavior
+/contextual-docs:setup
+/contextual-docs:login client-services-dev
+/contextual-docs:flow-context client-services-dev :: some-flow-id
+/contextual-docs:contextual inspect the current tenant's flow types
 ```
 
 ## Notes
 
-- The MCP endpoint is public and currently does not require OAuth.
-- If tool names are namespaced differently by client, always use tools from the `contextual-docs` server.
+- Tenant inspection and changes run through the local `contextual` connector.
+- The local `contextual` connector stays close to `ctxl` command structure.
+- Product and platform claims should be grounded with `contextual-docs`.
+- Login may open a browser window for approval.
+- Full tenant features require a Claude runtime that supports local MCP connectors.
+- Login jobs store temporary state in `.local/login-jobs/`, which is gitignored.

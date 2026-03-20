@@ -1,8 +1,14 @@
 {
   "mcpServers": {
+    "contextual": {
+      "command": "python3",
+      "args": [
+        "scripts/contextual_mcp.py"
+      ]
+    },
     "contextual-docs": {
       "type": "http",
-      "url": "https://contextual-docs-mcp.rob-fbc.workers.dev"
+      "url": "https://contextual-docs-mcp.contextualio.workers.dev"
     }
   }
 }
