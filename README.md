@@ -54,7 +54,9 @@ Example prompts:
 ## Notes
 
 - `solution-ai-knowledge` is the bundled docs connector name.
+- `solution-ai-knowledge` covers both public docs and the richer `contextual-context` implementation repository.
 - `contextual-cli` requires a runtime with local shell access such as Claude Code, Claude Cowork, OpenCode, or Codex.
 - `contextual-cli` expects `ctxl` to already be installed and available on the machine.
+- `contextual-cli` should use `solution-ai-knowledge` whenever platform behavior or implementation patterns matter.
 - Replace operations should be previewed with a diff and explicitly confirmed before writing.
 - This plugin does not expose delete/remove flows for tenant operations.

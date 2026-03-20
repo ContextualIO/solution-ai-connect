@@ -4,6 +4,7 @@
 
 `solution-ai-knowledge` tools:
 
+- `list_sources`
 - `search`
 - `list_paths`
 - `list_headings`

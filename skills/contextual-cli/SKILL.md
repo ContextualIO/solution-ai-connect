@@ -22,6 +22,7 @@ If shell access is unavailable, stop and tell the user this skill requires a she
 - Use [cli-reference.md](cli-reference.md) for the near-1:1 command map.
 - Use `${CLAUDE_SKILL_DIR}/scripts/contextual_login.py --state-dir "${CLAUDE_PLUGIN_DATA}/login-jobs"` for browser login orchestration.
 - Use `${CLAUDE_SKILL_DIR}/scripts/json_diff.py` to preview replace operations before writing.
+- Use the `solution-ai-knowledge` skill and connector as the default knowledge source for platform and implementation questions.
 
 ## Hard Rules
 
@@ -31,7 +32,24 @@ If shell access is unavailable, stop and tell the user this skill requires a she
 - Do not use `ctxl config delete`, `ctxl records delete/remove/rm`, or `ctxl types delete/remove/rm`.
 - Before any `replace` or `patch` operation, show a diff or the exact planned patch flags and ask for explicit confirmation.
 - Once you know the target config, prefer `--config-id <config-id>` on tenant commands even if you already ran `ctxl config use`.
-- Use `solution-ai-knowledge` before making detailed platform claims about flows, nodes, routing, or runtime behavior.
+- Use `solution-ai-knowledge` before making detailed platform claims about flows, nodes, routing, runtime behavior, payload shapes, or implementation patterns.
+
+## Knowledge Workflow
+
+Before you explain behavior, choose a pattern, or make a change that depends on platform knowledge:
+
+1. Use the `solution-ai-knowledge` skill if the runtime supports it.
+2. Otherwise directly use the `solution-ai-knowledge` connector tools following that skill's workflow.
+3. Prefer public docs for canonical behavior and the context repo for implementation guidance, snippets, and flow-building patterns.
+4. If the indexed knowledge is still ambiguous after one refinement, ask one targeted clarifying question before guessing.
+
+Use this knowledge workflow for things like:
+
+- choosing between flow patterns
+- understanding node behavior
+- confirming payload expectations
+- adapting existing snippets or functions
+- deciding how to structure a safe tenant edit
 
 ## Config Workflow
 
@@ -119,6 +137,8 @@ When summarizing a flow, inspect `node_red_data.flows` and report:
 - major branches
 - referenced record types
 
+Before changing a flow because of expected node or runtime behavior, consult `solution-ai-knowledge` for the relevant docs and context patterns.
+
 For flow edits:
 
 1. Fetch the current flow to a temp file.
@@ -154,5 +174,6 @@ For record patches, show the exact `ctxl records patch ...` flags before confirm
 - State the result first.
 - Summarize command results unless the user explicitly asked for raw output.
 - When auth recovery happens, continue the original task after retry.
+- Mention when `solution-ai-knowledge` materially influenced the recommendation or change.
 - For writes, include the diff or exact patch plan before asking for confirmation.
 - After any confirmed write, verify and report what changed.
