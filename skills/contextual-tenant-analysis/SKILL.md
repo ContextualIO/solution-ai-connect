@@ -26,10 +26,11 @@ Use this skill when the user wants an overview, audit, or analysis of a tenant.
 1. Ensure access with `setup_access` if needed.
 2. Confirm the active config with `config_current` or switch with `config_use`.
 3. Start with `types_list` to understand the tenant model.
-4. Use `types_get` on important types.
-5. Use `records_list`, `records_query`, and `records_stats` to inspect activity and sample data.
-6. If flows matter, inspect flow records with `records_list(type: "flow")` and `records_get(type: "flow", id: flowId)`.
-7. Ground platform-specific claims with `contextual-docs`.
+4. If a tenant read returns `authRequired: true` or says the config is not logged in, run `login_start`, wait with `login_await`, and retry the blocked read.
+5. Use `types_get` on important types.
+6. Use `records_list`, `records_query`, and `records_stats` to inspect activity and sample data.
+7. If flows matter, inspect flow records with `records_list(type: "flow")` and `records_get(type: "flow", id: flowId)`.
+8. Ground platform-specific claims with `contextual-docs`.
 
 ## Output
 

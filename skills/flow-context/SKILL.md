@@ -19,7 +19,7 @@ Format: `<config-id> :: <flow-id>`
 4. Call `records_get` with `type: "flow"` and `id: flowId`.
 5. Summarize the returned flow by reading `node_red_data.flows`.
 6. Include tabs, entry points, main chains, major branches, and referenced record types.
-7. If auth fails, run login and retry.
+7. If the flow read returns `authRequired: true` or says the config is not logged in, run `login_start`, wait with `login_await`, and retry the same `records_get` call.
 8. Summarize instead of dumping the whole record unless the user explicitly asks for raw JSON.
 
 ## Output

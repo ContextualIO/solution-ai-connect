@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import difflib
 import json
 import os
 import subprocess
@@ -252,6 +253,40 @@ def as_input_text(arguments: dict[str, Any], *, required: bool = False) -> str |
     return json.dumps(value)
 
 
+def input_value_for_diff(arguments: dict[str, Any]) -> Any:
+    value = arguments.get("input")
+    if isinstance(value, str):
+        try:
+            return json.loads(value)
+        except json.JSONDecodeError:
+            return value
+    return value
+
+
+def single_result(payload: dict[str, Any]) -> Any:
+    result = payload.get("result")
+    if isinstance(result, list) and len(result) == 1:
+        return result[0]
+    return result
+
+
+def render_diff_value(value: Any) -> list[str]:
+    if isinstance(value, str):
+        return value.splitlines(keepends=True)
+    return (json.dumps(value, indent=2, sort_keys=True) + "\n").splitlines(keepends=True)
+
+
+def unified_diff(before: Any, after: Any, *, before_name: str, after_name: str) -> str:
+    return "".join(
+        difflib.unified_diff(
+            render_diff_value(before),
+            render_diff_value(after),
+            fromfile=before_name,
+            tofile=after_name,
+        )
+    )
+
+
 def append_repeated_flag(args: list[str], flag: str, values: list[str]) -> None:
     for value in values:
         args.extend([flag, value])
@@ -388,16 +423,6 @@ def config_use(arguments: dict[str, Any]) -> dict[str, Any]:
     return tool_result(payload, is_error=not ok)
 
 
-def config_delete(arguments: dict[str, Any]) -> dict[str, Any]:
-    try:
-        config_id = require_string(arguments, "configId")
-    except ValueError as error:
-        return error_tool_result(str(error))
-
-    ok, payload = run_ctxl(["config", "delete", config_id], expect_json=False)
-    return tool_result(payload, is_error=not ok)
-
-
 def login_start(arguments: dict[str, Any]) -> dict[str, Any]:
     try:
         config_id = require_string(arguments, "configId")
@@ -480,16 +505,32 @@ def types_replace(arguments: dict[str, Any]) -> dict[str, Any]:
     return tool_result(payload, is_error=not ok)
 
 
-def types_remove(arguments: dict[str, Any]) -> dict[str, Any]:
+def types_diff(arguments: dict[str, Any]) -> dict[str, Any]:
     try:
         config_id = as_string(arguments, "configId")
-        args = ["types", "remove"]
+        proposed = input_value_for_diff(arguments)
+        args = ["types", "get"]
         apply_selector(args, arguments, require_uri_or_type=True, allow_multiple_ids=False)
     except ValueError as error:
         return error_tool_result(str(error))
 
-    ok, payload = run_ctxl(args, config_id=config_id, expect_json=False)
-    return tool_result(payload, is_error=not ok)
+    if proposed is None:
+        return error_tool_result("Missing required field: input")
+
+    ok, payload = run_ctxl(args, config_id=config_id)
+    if not ok:
+        return tool_result(payload, is_error=True)
+
+    current = single_result(payload)
+    diff_text = unified_diff(current, proposed, before_name="current", after_name="proposed")
+    return tool_result(
+        {
+            "ok": True,
+            "hasChanges": bool(diff_text),
+            "diff": diff_text,
+        },
+        text=diff_text or "No changes.",
+    )
 
 
 def records_add(arguments: dict[str, Any]) -> dict[str, Any]:
@@ -577,16 +618,32 @@ def records_replace(arguments: dict[str, Any]) -> dict[str, Any]:
     return tool_result(payload, is_error=not ok)
 
 
-def records_remove(arguments: dict[str, Any]) -> dict[str, Any]:
+def records_diff(arguments: dict[str, Any]) -> dict[str, Any]:
     try:
         config_id = as_string(arguments, "configId")
-        args = ["records", "remove"]
-        apply_selector(args, arguments, require_uri_or_type=True)
+        proposed = input_value_for_diff(arguments)
+        args = ["records", "get"]
+        apply_selector(args, arguments, require_uri_or_type=True, allow_multiple_ids=False)
     except ValueError as error:
         return error_tool_result(str(error))
 
-    ok, payload = run_ctxl(args, config_id=config_id, expect_json=False)
-    return tool_result(payload, is_error=not ok)
+    if proposed is None:
+        return error_tool_result("Missing required field: input")
+
+    ok, payload = run_ctxl(args, config_id=config_id)
+    if not ok:
+        return tool_result(payload, is_error=True)
+
+    current = single_result(payload)
+    diff_text = unified_diff(current, proposed, before_name="current", after_name="proposed")
+    return tool_result(
+        {
+            "ok": True,
+            "hasChanges": bool(diff_text),
+            "diff": diff_text,
+        },
+        text=diff_text or "No changes.",
+    )
 
 
 def records_stats(arguments: dict[str, Any]) -> dict[str, Any]:
@@ -632,15 +689,6 @@ TOOLS: list[dict[str, Any]] = [
     {
         "name": "config_use",
         "description": "Set the current tenant config.",
-        "inputSchema": {
-            "type": "object",
-            "properties": {"configId": {"type": "string"}},
-            "required": ["configId"],
-        },
-    },
-    {
-        "name": "config_delete",
-        "description": "Delete a saved tenant config.",
         "inputSchema": {
             "type": "object",
             "properties": {"configId": {"type": "string"}},
@@ -715,8 +763,8 @@ TOOLS: list[dict[str, Any]] = [
         },
     },
     {
-        "name": "types_replace",
-        "description": "Replace one type.",
+        "name": "types_diff",
+        "description": "Show a unified diff for a proposed type replacement.",
         "inputSchema": {
             "type": "object",
             "properties": {
@@ -729,11 +777,17 @@ TOOLS: list[dict[str, Any]] = [
         },
     },
     {
-        "name": "types_remove",
-        "description": "Delete one type.",
+        "name": "types_replace",
+        "description": "Replace one type.",
         "inputSchema": {
             "type": "object",
-            "properties": {"configId": {"type": "string"}, "uri": {"type": "string"}, "type": {"type": "string"}},
+            "properties": {
+                "configId": {"type": "string"},
+                "uri": {"type": "string"},
+                "type": {"type": "string"},
+                "input": INPUT_SCHEMA,
+            },
+            "required": ["input"],
         },
     },
     {
@@ -824,8 +878,8 @@ TOOLS: list[dict[str, Any]] = [
         },
     },
     {
-        "name": "records_replace",
-        "description": "Replace one record.",
+        "name": "records_diff",
+        "description": "Show a unified diff for a proposed record replacement.",
         "inputSchema": {
             "type": "object",
             "properties": {
@@ -839,8 +893,8 @@ TOOLS: list[dict[str, Any]] = [
         },
     },
     {
-        "name": "records_remove",
-        "description": "Delete one or more records.",
+        "name": "records_replace",
+        "description": "Replace one record.",
         "inputSchema": {
             "type": "object",
             "properties": {
@@ -848,7 +902,9 @@ TOOLS: list[dict[str, Any]] = [
                 "uri": {"type": "string"},
                 "type": {"type": "string"},
                 "id": ID_SCHEMA,
+                "input": INPUT_SCHEMA,
             },
+            "required": ["input"],
         },
     },
     {
@@ -874,22 +930,21 @@ TOOL_HANDLERS: dict[str, Callable[[dict[str, Any]], dict[str, Any]]] = {
     "config_get": config_get,
     "config_add": config_add,
     "config_use": config_use,
-    "config_delete": config_delete,
     "login_start": login_start,
     "login_status": login_status,
     "login_await": login_await,
     "types_add": types_add,
     "types_list": types_list,
     "types_get": types_get,
+    "types_diff": types_diff,
     "types_replace": types_replace,
-    "types_remove": types_remove,
     "records_add": records_add,
     "records_list": records_list,
     "records_get": records_get,
     "records_query": records_query,
     "records_patch": records_patch,
+    "records_diff": records_diff,
     "records_replace": records_replace,
-    "records_remove": records_remove,
     "records_stats": records_stats,
 }
 

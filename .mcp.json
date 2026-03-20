@@ -3,7 +3,7 @@
     "contextual": {
       "command": "python3",
       "args": [
-        "scripts/contextual_mcp.py"
+        "${CLAUDE_PLUGIN_ROOT}/scripts/contextual_mcp.py"
       ]
     },
     "contextual-docs": {

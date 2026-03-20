@@ -14,6 +14,7 @@ Use this skill when the user wants to inspect or modify an existing flow.
 - `config_current`
 - `config_use`
 - `records_get`
+- `records_diff`
 - `records_replace`
 - `records_patch`
 - `contextual-docs` tools for node and flow behavior
@@ -23,10 +24,14 @@ Use this skill when the user wants to inspect or modify an existing flow.
 1. Ensure access with `setup_access` if needed.
 2. Confirm the active config with `config_current` or switch with `config_use`.
 3. Fetch the flow with `records_get(type: "flow", id: flowId)`.
-4. Inspect `node_red_data.flows`.
-5. Ground platform behavior questions with `contextual-docs` before editing.
-6. Prefer full replacement with `records_replace(type: "flow", id: flowId, input: document)`.
-7. Re-read the flow after each change and verify the exact structure landed.
+4. If the read returns `authRequired: true` or says the config is not logged in, run `login_start`, wait with `login_await`, then retry the same read.
+5. Inspect `node_red_data.flows`.
+6. Ground platform behavior questions with `contextual-docs` before editing.
+7. Preview the exact edit with `records_diff(type: "flow", id: flowId, input: document)`.
+8. Show the diff to the user and ask for explicit confirmation before writing.
+9. Prefer full replacement with `records_replace(type: "flow", id: flowId, input: document)`.
+10. If a write returns `authRequired: true`, run login, retry the write once, then re-read the flow.
+11. Re-read the flow after each change and verify the exact structure landed.
 
 ## Flow Heuristics
 
@@ -39,5 +44,6 @@ Use this skill when the user wants to inspect or modify an existing flow.
 ## Output
 
 - State the change first.
+- Include the reviewed diff before any write.
 - Mention what was verified after the edit.
 - Summarize the affected nodes and chains instead of dumping the whole flow unless asked.

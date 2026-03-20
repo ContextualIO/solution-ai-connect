@@ -5,7 +5,7 @@ description: Inspect, update, and explain Contextual tenants with guided workflo
 
 # Contextual
 
-Use this skill for Contextual tenant work: setup, login, inspection, edits, and docs-grounded platform guidance.
+Use this skill for Contextual tenant work: setup, inspection, edits, automatic auth recovery, and docs-grounded platform guidance.
 
 When a task is specifically about editing an existing flow, prefer the `contextual-flow-edit` skill.
 
@@ -28,22 +28,21 @@ Use tools from the local `contextual` server for tenant work:
 - `config_get`
 - `config_add`
 - `config_use`
-- `config_delete`
 - `login_start`
 - `login_status`
 - `login_await`
 - `types_add`
 - `types_list`
 - `types_get`
+- `types_diff`
 - `types_replace`
-- `types_remove`
 - `records_add`
 - `records_list`
 - `records_get`
 - `records_query`
 - `records_patch`
+- `records_diff`
 - `records_replace`
-- `records_remove`
 - `records_stats`
 
 Use these `contextual-docs` tools for docs grounding:
@@ -63,6 +62,7 @@ Use these `contextual-docs` tools for docs grounding:
 - Never expose or summarize bearer tokens, refresh tokens, or auth headers.
 - Use the `contextual` server for tenant access instead of direct shell commands.
 - Only involve the user when browser approval is required for login.
+- Do not ask the user to run the `login` skill during normal tenant work; handle auth recovery yourself.
 - Use docs tools before making detailed platform claims.
 - Prefer targeted inspection and summaries over full JSON dumps.
 
@@ -71,7 +71,8 @@ Use these `contextual-docs` tools for docs grounding:
 1. Call `setup_access`.
 2. Call `config_list`.
 3. If needed, call `config_current`.
-4. If the local `contextual` tools are unavailable, explain that this runtime needs local MCP support for full tenant access.
+4. The first protected tenant call may trigger browser login automatically.
+5. If the local `contextual` tools are unavailable, explain that this runtime needs local MCP support for full tenant access.
 
 ## Docs Workflow
 
@@ -101,7 +102,7 @@ If a config is missing and the user supplied a tenant identifier:
 
 `config_add(configId, tenantId?)`
 
-If auth is stale or missing, start login yourself.
+If auth is stale, missing, or a tool returns `authRequired: true`, start login yourself and then retry the blocked call.
 
 Preferred login workflow:
 
@@ -113,6 +114,16 @@ During login:
 - Tell the user to confirm the same code in the browser window and approve it there.
 - Retry the blocked command after login completes.
 - If waiting times out, keep the job id and check again with `login_status(jobId)`.
+
+## Automatic Auth Recovery
+
+For any tenant tool call:
+
+1. Run the requested `contextual` tool.
+2. If it succeeds, continue normally.
+3. If it returns `authRequired: true` or reports that the config is not logged in, do not stop and do not ask the user to run another skill.
+4. Start login for that same config, relay the code, wait for browser approval, and retry the original tool call.
+5. Continue the original task after the retry succeeds.
 
 ## Common Commands
 
@@ -138,12 +149,20 @@ For flow edits:
 
 1. Fetch the flow record.
 2. Edit `node_red_data.flows` carefully.
-3. Replace the flow with `records_replace(type: "flow", id: flowId, input: document)`.
-4. Re-read the flow and verify the expected structure landed.
+3. Preview the change with `records_diff(type: "flow", id: flowId, input: document)`.
+4. Show the diff to the user and ask for explicit confirmation before writing.
+5. Replace the flow with `records_replace(type: "flow", id: flowId, input: document)` only after confirmation.
+6. Re-read the flow and verify the expected structure landed.
 
-For record patches, use `records_patch` only when the change is naturally expressible as field operations.
+For record patches, use `records_patch` only when the change is naturally expressible as field operations, and show the exact planned patch operations before asking for confirmation.
 
 For full replacements, prefer `records_replace`.
+
+## Write Safety
+
+- For `types_replace` and `records_replace`, always preview with `types_diff` or `records_diff` first.
+- Show the diff before writing and ask for explicit confirmation.
+- Do not delete configs, types, or records through this plugin.
 
 ## Important Flow Heuristics
 
@@ -159,4 +178,4 @@ For full replacements, prefer `records_replace`.
 - State the result first.
 - Cite docs when claims depend on platform behavior.
 - Summarize command results unless the user asked for raw output.
-- If auth is stale, say that clearly and start login.
+- If auth is stale, say that clearly, start login, and continue the original task after retry.

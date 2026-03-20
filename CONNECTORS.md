@@ -11,22 +11,21 @@
 - `config_get`
 - `config_add`
 - `config_use`
-- `config_delete`
 - `login_start`
 - `login_status`
 - `login_await`
 - `types_add`
 - `types_list`
 - `types_get`
+- `types_diff`
 - `types_replace`
-- `types_remove`
 - `records_add`
 - `records_list`
 - `records_get`
 - `records_query`
 - `records_patch`
+- `records_diff`
 - `records_replace`
-- `records_remove`
 - `records_stats`
 
 `contextual-docs` tools:

@@ -71,7 +71,6 @@ Example prompts:
 
 ```text
 /contextual-docs:setup
-/contextual-docs:login client-services-dev
 /contextual-docs:flow-context client-services-dev :: some-flow-id
 /contextual-docs:contextual inspect the current tenant's flow types
 ```
@@ -81,6 +80,8 @@ Example prompts:
 - Tenant inspection and changes run through the local `contextual` connector.
 - The local `contextual` connector stays close to `ctxl` command structure.
 - Product and platform claims should be grounded with `contextual-docs`.
-- Login may open a browser window for approval.
+- Login usually starts automatically on the first protected tenant action and may open a browser window for approval.
+- `/contextual-docs:login` remains available as a manual fallback.
+- Replace operations should be previewed with a diff and confirmed before writing.
 - Full tenant features require a Claude runtime that supports local MCP connectors.
 - Login jobs store temporary state in `.local/login-jobs/`, which is gitignored.

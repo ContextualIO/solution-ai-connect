@@ -1,11 +1,13 @@
 ---
 name: login
-description: Start login for a config and wait for completion.
+description: Manually start login for a config and wait for completion.
 disable-model-invocation: true
 argument-hint: [config-id]
 ---
 
 # Contextual Login
+
+This is a fallback skill. Normal tenant work should usually trigger login automatically when a protected call needs auth.
 
 Target: `$ARGUMENTS`
 
