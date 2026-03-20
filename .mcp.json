@@ -1,12 +1,6 @@
 {
   "mcpServers": {
-    "contextual": {
-      "command": "python3",
-      "args": [
-        "${CLAUDE_PLUGIN_ROOT}/scripts/contextual_mcp.py"
-      ]
-    },
-    "contextual-docs": {
+    "solution-ai-knowledge": {
       "type": "http",
       "url": "https://contextual-docs-mcp.contextualio.workers.dev"
     }

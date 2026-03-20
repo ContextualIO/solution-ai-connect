@@ -1,37 +1,26 @@
 # contextual-docs plugin
 
-Work with Contextual tenants from Claude:
+Work with Contextual from Claude in two ways:
 
-- set up access
-- refresh login
-- inspect tenants and flows
-- ground platform answers in docs
-
-This plugin includes:
-
-- a local `contextual` connector for tenant access
-- the remote `contextual-docs` connector for docs grounding
+- `solution-ai-knowledge` for docs-grounded product and platform answers
+- `contextual-cli` for shell-first tenant inspection and safe edits in local coding agents
 
 ## Included files
 
 - `.claude-plugin/plugin.json` - plugin manifest
 - `.claude-plugin/marketplace.json` - source install metadata
-- `.mcp.json` - local `contextual` and remote `contextual-docs` connectors
-- `skills/setup/SKILL.md` - setup skill
-- `skills/login/SKILL.md` - login skill
-- `skills/flow-context/SKILL.md` - flow summary skill
-- `skills/contextual/SKILL.md` - main operating instructions
-- `skills/contextual-flow-edit/SKILL.md` - focused flow editing guidance
-- `skills/contextual-tenant-analysis/SKILL.md` - focused tenant analysis guidance
-- `scripts/contextual_mcp.py` - local Contextual connector
-- `scripts/setup_access.sh` - access setup script
-- `scripts/contextual_login.py` - login job script
+- `.mcp.json` - bundled `solution-ai-knowledge` connector
+- `skills/solution-ai-knowledge/SKILL.md` - docs-grounding skill
+- `skills/contextual-cli/SKILL.md` - shell-only CLI skill
+- `skills/contextual-cli/cli-reference.md` - compact `ctxl` command reference
+- `skills/contextual-cli/scripts/contextual_login.py` - browser login helper
+- `skills/contextual-cli/scripts/json_diff.py` - diff preview helper for replace flows
 
 ## Install in Cowork
 
 1. Open Claude Desktop and switch to **Cowork**.
 2. Go to **Customize** -> **Browse plugins**.
-3. Upload this plugin folder (or a zip containing this folder).
+3. Upload this plugin folder, or a zip containing this folder.
 4. Install it.
 
 ## Install from GitHub source
@@ -44,20 +33,8 @@ claude plugin install contextual-docs@contextual-scratchpad
 
 After install, you should see namespaced skills like:
 
-- `/contextual-docs:setup`
-- `/contextual-docs:login`
-- `/contextual-docs:flow-context`
-- `/contextual-docs:contextual`
-
-## First use
-
-Run:
-
-```text
-/contextual-docs:setup
-```
-
-That prepares local access and shows saved tenant configs.
+- `/contextual-docs:solution-ai-knowledge`
+- `/contextual-docs:contextual-cli`
 
 ## Install in Claude Code
 
@@ -70,18 +47,14 @@ claude --plugin-dir .
 Example prompts:
 
 ```text
-/contextual-docs:setup
-/contextual-docs:flow-context client-services-dev :: some-flow-id
-/contextual-docs:contextual inspect the current tenant's flow types
+/contextual-docs:solution-ai-knowledge explain flow-http path behavior
+/contextual-docs:contextual-cli inspect the current tenant's flow types
 ```
 
 ## Notes
 
-- Tenant inspection and changes run through the local `contextual` connector.
-- The local `contextual` connector stays close to `ctxl` command structure.
-- Product and platform claims should be grounded with `contextual-docs`.
-- Login usually starts automatically on the first protected tenant action and may open a browser window for approval.
-- `/contextual-docs:login` remains available as a manual fallback.
-- Replace operations should be previewed with a diff and confirmed before writing.
-- Full tenant features require a Claude runtime that supports local MCP connectors.
-- Login jobs store temporary state in `.local/login-jobs/`, which is gitignored.
+- `solution-ai-knowledge` is the bundled docs connector name.
+- `contextual-cli` requires a runtime with local shell access such as Claude Code, Claude Cowork, OpenCode, or Codex.
+- `contextual-cli` expects `ctxl` to already be installed and available on the machine.
+- Replace operations should be previewed with a diff and explicitly confirmed before writing.
+- This plugin does not expose delete/remove flows for tenant operations.

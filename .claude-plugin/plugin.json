@@ -1,7 +1,7 @@
 {
   "name": "contextual-docs",
-  "version": "0.2.0",
-  "description": "Inspect tenants, recover access, preview edits safely, and ground Contextual answers in docs from Claude.",
+  "version": "0.3.0",
+  "description": "Bundle Solution AI knowledge and a shell-first Contextual CLI skill for local coding agents.",
   "author": {
     "name": "Robert Velasquez"
   },

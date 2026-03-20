@@ -15,8 +15,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 
-ROOT = Path(__file__).resolve().parents[1]
-STATE_DIR = ROOT / ".local" / "login-jobs"
+ROOT = Path(__file__).resolve().parents[3]
+DEFAULT_STATE_DIR = ROOT / ".local" / "login-jobs"
 USER_CODE_RE = re.compile(r"verification code:\s*(.+)$", re.IGNORECASE)
 
 
@@ -26,11 +26,11 @@ def now_iso() -> str:
 
 def ensure_ctxl() -> None:
     if shutil.which("ctxl") is None:
-        raise RuntimeError("Contextual access is not installed. Run scripts/setup_access.sh first.")
+        raise RuntimeError("ctxl is not installed or not on PATH.")
 
 
-def ensure_state_dir() -> None:
-    STATE_DIR.mkdir(parents=True, exist_ok=True)
+def ensure_state_dir(state_dir: Path) -> None:
+    state_dir.mkdir(parents=True, exist_ok=True)
 
 
 def run_command(command: list[str], check: bool = True) -> subprocess.CompletedProcess[str]:
@@ -56,8 +56,8 @@ def switch_config(config_id: str) -> None:
     run_command(["ctxl", "config", "use", config_id])
 
 
-def state_path(job_id: str) -> Path:
-    return STATE_DIR / f"{job_id}.json"
+def state_path(state_dir: Path, job_id: str) -> Path:
+    return state_dir / f"{job_id}.json"
 
 
 def load_state(path: Path) -> dict:
@@ -107,16 +107,16 @@ def print_state(payload: dict) -> None:
     print(json.dumps(payload, indent=2))
 
 
-def command_start(config_id: str) -> int:
+def command_start(state_dir: Path, config_id: str) -> int:
     ensure_ctxl()
-    ensure_state_dir()
+    ensure_state_dir(state_dir)
 
     previous_config_id = current_config_id()
     switch_config(config_id)
 
     job_id = uuid.uuid4().hex
-    path = state_path(job_id)
-    log_path = STATE_DIR / f"{job_id}.log"
+    path = state_path(state_dir, job_id)
+    log_path = state_dir / f"{job_id}.log"
     payload = {
         "jobId": job_id,
         "configId": config_id,
@@ -153,8 +153,8 @@ def command_start(config_id: str) -> int:
     return 0
 
 
-def command_status(job_id: str) -> int:
-    path = state_path(job_id)
+def command_status(state_dir: Path, job_id: str) -> int:
+    path = state_path(state_dir, job_id)
     if not path.exists():
         raise RuntimeError(f"Unknown job id: {job_id}")
 
@@ -164,8 +164,8 @@ def command_status(job_id: str) -> int:
     return 0
 
 
-def command_await(job_id: str, timeout_seconds: int) -> int:
-    path = state_path(job_id)
+def command_await(state_dir: Path, job_id: str, timeout_seconds: int) -> int:
+    path = state_path(state_dir, job_id)
     if not path.exists():
         raise RuntimeError(f"Unknown job id: {job_id}")
 
@@ -239,7 +239,8 @@ def command_worker(path_value: str) -> int:
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Manage login jobs for Contextual access.")
+    parser = argparse.ArgumentParser(description="Manage login jobs for the local Contextual CLI.")
+    parser.add_argument("--state-dir", default=str(DEFAULT_STATE_DIR))
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     start = subparsers.add_parser("start")
@@ -261,13 +262,14 @@ def build_parser() -> argparse.ArgumentParser:
 def main() -> int:
     parser = build_parser()
     args = parser.parse_args()
+    state_dir = Path(args.state_dir)
 
     if args.command == "start":
-        return command_start(args.config_id)
+        return command_start(state_dir, args.config_id)
     if args.command == "status":
-        return command_status(args.job_id)
+        return command_status(state_dir, args.job_id)
     if args.command == "await":
-        return command_await(args.job_id, args.timeout_seconds)
+        return command_await(state_dir, args.job_id, args.timeout_seconds)
     if args.command == "_worker":
         return command_worker(args.state_path)
     raise RuntimeError(f"Unsupported command: {args.command}")

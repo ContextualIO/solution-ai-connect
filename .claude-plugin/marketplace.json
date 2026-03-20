@@ -8,7 +8,7 @@
     {
       "name": "contextual-docs",
       "source": "./",
-      "description": "Ground Contextual answers in docs using the contextual-docs MCP retrieval workflow."
+      "description": "Bundle Solution AI knowledge and a shell-first Contextual CLI skill for local coding agents."
     }
   ]
 }
