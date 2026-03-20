@@ -1,7 +1,7 @@
 {
   "name": "contextual-docs",
-  "version": "0.1.0",
-  "description": "Ground Contextual answers in docs using the contextual-docs MCP retrieval workflow.",
+  "version": "0.2.0",
+  "description": "Inspect tenants, recover access, preview edits safely, and ground Contextual answers in docs from Claude.",
   "author": {
     "name": "Robert Velasquez"
   },
