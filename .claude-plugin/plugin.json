@@ -1,7 +1,7 @@
 {
-  "name": "contextual-docs",
-  "version": "0.4.0",
-  "description": "Bundle SolAI knowledge and a shell-first SolAI CLI skill for local coding agents.",
+  "name": "ctxl",
+  "version": "0.5.0",
+  "description": "Solution AI Connect bundle with SolAI knowledge and a shell-first SolAI CLI skill for local coding agents.",
   "author": {
     "name": "Robert Velasquez"
   },

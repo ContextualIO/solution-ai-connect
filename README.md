@@ -1,4 +1,9 @@
-# contextual-docs plugin
+# Solution AI Connect
+
+Solution AI Connect is the branded Claude bundle for SolAI skills.
+
+- product / experience name: `Solution AI Connect`
+- Claude plugin namespace: `ctxl`
 
 Work with Contextual from Claude in two ways:
 
@@ -28,13 +33,13 @@ Work with Contextual from Claude in two ways:
 If this repository is added as a plugin source, install with:
 
 ```bash
-claude plugin install contextual-docs@contextual-scratchpad
+claude plugin install ctxl@contextual-scratchpad
 ```
 
 After install, you should see namespaced skills like:
 
-- `/contextual-docs:solai-knowledge`
-- `/contextual-docs:solai-cli`
+- `/ctxl:solai-knowledge`
+- `/ctxl:solai-cli`
 
 ## Install in Claude Code
 
@@ -47,8 +52,8 @@ claude --plugin-dir .
 Example prompts:
 
 ```text
-/contextual-docs:solai-knowledge explain flow-http path behavior
-/contextual-docs:solai-cli inspect the current tenant's flow types
+/ctxl:solai-knowledge explain flow-http path behavior
+/ctxl:solai-cli inspect the current tenant's flow types
 ```
 
 ## Notes
@@ -56,6 +61,7 @@ Example prompts:
 - `solai-knowledge` is the bundled docs-grounding skill and uses the `solai-knowledge-mcp` connector.
 - `solai-cli` requires a runtime with local shell access such as Claude Code, Claude Cowork, OpenCode, or Codex.
 - `solai-cli` expects `ctxl` to already be installed and available on the machine.
+- the repo name is `solution-ai-connect`, while the Claude plugin namespace stays `ctxl`
 - `skills/solai-knowledge/` and `skills/solai-cli/` are linked into this plugin as Git submodules from `ContextualScratchpad`.
 - Replace operations should be previewed with a diff and explicitly confirmed before writing.
 - This plugin does not expose delete/remove flows for tenant operations.
