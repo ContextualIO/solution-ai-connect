@@ -1,7 +1,7 @@
 {
   "name": "contextual-docs",
-  "version": "0.3.0",
-  "description": "Bundle Solution AI knowledge and a shell-first Contextual CLI skill for local coding agents.",
+  "version": "0.4.0",
+  "description": "Bundle SolAI knowledge and a shell-first SolAI CLI skill for local coding agents.",
   "author": {
     "name": "Robert Velasquez"
   },

@@ -8,7 +8,7 @@
     {
       "name": "contextual-docs",
       "source": "./",
-      "description": "Bundle Solution AI knowledge and a shell-first Contextual CLI skill for local coding agents."
+      "description": "Bundle SolAI knowledge and a shell-first SolAI CLI skill for local coding agents."
     }
   ]
 }
