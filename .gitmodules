@@ -1,6 +1,0 @@
-[submodule "skills/solai-knowledge"]
-	path = skills/solai-knowledge
-	url = https://github.com/ContextualScratchpad/solai-knowledge.git
-[submodule "skills/solai-cli"]
-	path = skills/solai-cli
-	url = https://github.com/ContextualScratchpad/solai-cli.git
