@@ -2,7 +2,7 @@
 name: solai-cli
 description: Use the local Contextual CLI from shell-capable agents to inspect tenants, analyze flows, and apply safe edits. Use only in runtimes with local shell access.
 disable-model-invocation: true
-argument-hint: [task]
+argument-hint: "[task]"
 ---
 
 # SolAI CLI
