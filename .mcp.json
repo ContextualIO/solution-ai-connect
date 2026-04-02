@@ -1,6 +1,6 @@
 {
   "mcpServers": {
-    "solai-knowledge-mcp": {
+    "Solution AI Knowledge MCP": {
       "type": "http",
       "url": "https://contextual-docs-mcp.contextualio.workers.dev"
     }
