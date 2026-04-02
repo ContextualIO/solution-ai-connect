@@ -4,6 +4,7 @@ Solution AI Connect is the branded Claude bundle for SolAI skills.
 
 - product / experience name: `Solution AI Connect`
 - Claude plugin namespace: `ctxl`
+- GitHub org: `ContextualIO`
 
 Work with Contextual from Claude in two ways:
 
@@ -30,10 +31,10 @@ Work with Contextual from Claude in two ways:
 
 ## Install from GitHub source
 
-If this repository is added as a plugin source, install with:
+If this repository is added as a plugin marketplace from `ContextualIO/solution-ai-connect`, install with:
 
 ```bash
-claude plugin install ctxl@contextual-scratchpad
+claude plugin install ctxl@contextual-io
 ```
 
 After install, you should see namespaced skills like:
@@ -62,6 +63,6 @@ Example prompts:
 - `solai-cli` requires a runtime with local shell access such as Claude Code, Claude Cowork, OpenCode, or Codex.
 - `solai-cli` expects `ctxl` to already be installed and available on the machine.
 - the repo name is `solution-ai-connect`, while the Claude plugin namespace stays `ctxl`
-- `skills/solai-knowledge/` and `skills/solai-cli/` are linked into this plugin as Git submodules from `ContextualScratchpad`.
+- `skills/solai-knowledge/` and `skills/solai-cli/` are linked into this plugin as Git submodules from `ContextualIO`.
 - Replace operations should be previewed with a diff and explicitly confirmed before writing.
 - This plugin does not expose delete/remove flows for tenant operations.

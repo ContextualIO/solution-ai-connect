@@ -1,8 +1,8 @@
 {
   "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
-  "name": "contextual-scratchpad",
+  "name": "contextual-io",
   "owner": {
-    "name": "Robert Velasquez"
+    "name": "Contextual.io"
   },
   "plugins": [
     {
