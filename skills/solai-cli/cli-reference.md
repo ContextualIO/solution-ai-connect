@@ -28,6 +28,13 @@ Aliases documented by the CLI:
 
 ## Types
 
+Important model:
+
+- For normal callers, `ctxl types list` is the discovery path for tenant-defined custom object types.
+- Do not assume `ctxl types list` will surface reserved admin component types.
+- For reserved admin component types, start from known IDs and fetch them directly with `ctxl types get --type TYPE` and `ctxl records ... --type TYPE`.
+- Current reserved component set used by admin-console code: `agent`, `flow`, `topics`, `api-configuration`, `ai-route`, `jwks-configuration`, `authorization-code-app`.
+
 - `ctxl types add --input-file FILE`
 - `ctxl types get [URI] --type TYPE`
 - `ctxl types list [--search FIELD=VALUE] [--exact-search FIELD=VALUE] [--from FIELD=VALUE] [--to FIELD=VALUE] [--order-by FIELD:desc] [--include-total] [--page-size N] [--page-token TOKEN] [--export] [--progress]`

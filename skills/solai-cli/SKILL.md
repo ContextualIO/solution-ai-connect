@@ -88,11 +88,48 @@ Do not ask the user to manually invoke another skill during normal CLI work.
 
 Use `cli-reference.md` for exact command forms.
 
+Type discovery follows two tracks:
+
+- reserved admin component types: do not rely on `ctxl types list` to discover these. For normal callers, type listing is effectively limited to tenant-defined custom object types. Treat this reserved set as known IDs:
+  - `agent`
+  - `flow`
+  - `topics`
+  - `api-configuration`
+  - `ai-route`
+  - `jwks-configuration`
+  - `authorization-code-app`
+- tenant-defined data object types: use `ctxl types list` to discover these, then `ctxl types get` to inspect the chosen type.
+
+When inspecting a tenant, choose the track explicitly:
+
+1. If the user is asking about flows, agents, connections, AI routes, JWKS configs, authz code apps, or topics, start from the reserved component map.
+2. If the user is asking about tenant business data, schemas, records, triggers, actions, or custom objects, start with `ctxl types list`.
+3. Once you know the type ID, use `ctxl types get --type <type-id> --config-id <config-id>` and then `ctxl records ... --type <type-id> --config-id <config-id>`.
+
 Common reads:
 
 - configs: `ctxl config list --json`, `ctxl config current --json`, `ctxl config get <config-id> --json`
-- types: `ctxl types list --config-id <config-id>`, `ctxl types get --config-id <config-id>`
-- records: `ctxl records list --config-id <config-id>`, `ctxl records get --config-id <config-id>`, `ctxl records query --config-id <config-id>`, `ctxl records stats --config-id <config-id>`
+- types: `ctxl types list --config-id <config-id>`, `ctxl types get --type <type-id> --config-id <config-id>`
+- records: `ctxl records list --type <type-id> --config-id <config-id>`, `ctxl records get --type <type-id> --id <id> --config-id <config-id>`, `ctxl records query --type <type-id> --query-file <file> --config-id <config-id>`, `ctxl records stats --type <type-id> --id <id> --config-id <config-id>`
+
+Reserved admin component examples:
+
+```bash
+ctxl types get --type flow --config-id <config-id>
+ctxl records list --type flow --config-id <config-id>
+ctxl types get --type agent --config-id <config-id>
+ctxl records list --type agent --config-id <config-id>
+ctxl types get --type ai-route --config-id <config-id>
+ctxl records list --type ai-route --config-id <config-id>
+```
+
+Tenant-defined data object example:
+
+```bash
+ctxl types list --config-id <config-id>
+ctxl types get --type <custom-type-id> --config-id <config-id>
+ctxl records list --type <custom-type-id> --config-id <config-id>
+```
 
 For writes:
 
