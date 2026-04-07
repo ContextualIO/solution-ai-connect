@@ -33,7 +33,8 @@ Important model:
 - For normal callers, `ctxl types list` is the discovery path for tenant-defined custom object types.
 - Do not assume `ctxl types list` will surface reserved admin component types.
 - For reserved admin component types, start from known IDs and fetch them directly with `ctxl types get --type TYPE` and `ctxl records ... --type TYPE`.
-- Current reserved component set used by admin-console code: `agent`, `flow`, `topics`, `api-configuration`, `ai-route`, `jwks-configuration`, `authorization-code-app`.
+- Current reserved component set used by admin-console code: `agent`, `flow`, `topics`, `api-configuration` (known to users as "Connections"), `ai-route`, `jwks-configuration`, `authorization-code-app`.
+- `ctxl types get --type <type-id>` returns the full JSON schema for any type — enums, patterns, min/max constraints, defaults, and relations. Use this as the authoritative source for field shapes before any create or replace operation.
 
 - `ctxl types add --input-file FILE`
 - `ctxl types get [URI] --type TYPE`

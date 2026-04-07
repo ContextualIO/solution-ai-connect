@@ -94,7 +94,7 @@ Type discovery follows two tracks:
   - `agent`
   - `flow`
   - `topics`
-  - `api-configuration`
+  - `api-configuration` (known to users as "Connections")
   - `ai-route`
   - `jwks-configuration`
   - `authorization-code-app`
@@ -104,7 +104,7 @@ When inspecting a tenant, choose the track explicitly:
 
 1. If the user is asking about flows, agents, connections, AI routes, JWKS configs, authz code apps, or topics, start from the reserved component map.
 2. If the user is asking about tenant business data, schemas, records, triggers, actions, or custom objects, start with `ctxl types list`.
-3. Once you know the type ID, use `ctxl types get --type <type-id> --config-id <config-id>` and then `ctxl records ... --type <type-id> --config-id <config-id>`.
+3. Once you know the type ID, use `ctxl types get --type <type-id> --config-id <config-id>` to retrieve the full JSON schema — enums, patterns, constraints, defaults, and relations. This is the authoritative source for field shapes before any create or replace operation. Then use `ctxl records ... --type <type-id> --config-id <config-id>`.
 
 Common reads:
 
