@@ -53,6 +53,8 @@ ctxl config list --json
 ctxl config current --json
 ```
 
+Config commands (`config list`, `config current`, `config get`) support `--json` for structured JSON output instead of the default table format. Records and types commands already output JSON by default.
+
 If a config is missing and the user supplied a tenant identifier:
 
 ```bash
@@ -121,7 +123,7 @@ Common reads:
 
 - configs: `ctxl config list --json`, `ctxl config current --json`, `ctxl config get <config-id> --json`
 - types: `ctxl types list --config-id <config-id>`, `ctxl types get --type <type-id> --config-id <config-id>`
-- records: `ctxl records list --type <type-id> --config-id <config-id>`, `ctxl records get --type <type-id> --id <id> --config-id <config-id>`, `ctxl records query --type <type-id> --query-file <file> --config-id <config-id>`, `ctxl records stats --type <type-id> --id <id> --config-id <config-id>`
+- records: `ctxl records list --type <type-id> --config-id <config-id>`, `ctxl records get --type <type-id> --id <id> --config-id <config-id>`, `ctxl records query native-object:<type-id> --query-file <file> --config-id <config-id>`, `ctxl records stats --type <type-id> --id <id> --config-id <config-id>`
 
 Reserved admin component examples:
 
@@ -147,6 +149,61 @@ For writes:
 - create with `ctxl types add` or `ctxl records add`
 - patch with `ctxl records patch`
 - replace with `ctxl types replace` or `ctxl records replace`
+
+## Querying Records
+
+`ctxl records query` accepts a JSON file containing MongoDB-style query predicates. Fields are prefixed with `$.` and operators use the `$` prefix.
+
+**Important:** `records query` requires the `native-object:<type-id>` URI positional argument, not `--type`.
+
+### Stdin piping
+
+Pass a query inline via stdin (the default `--query-file` is `-`):
+
+```bash
+echo '{"$.status": "active"}' | ctxl records query native-object:<type-id> --config-id <config-id>
+```
+
+### Query file
+
+Or write the query to a file:
+
+```bash
+ctxl records query native-object:<type-id> --query-file query.json --config-id <config-id>
+```
+
+### Supported operators
+
+The query format follows [MongoDB query predicates](https://www.mongodb.com/docs/manual/reference/mql/query-predicates/). Common operators:
+
+- Exact match: `{"$.field": "value"}`
+- `$in`: `{"$.field": {"$in": ["val1", "val2"]}}`
+- `$gt`, `$gte`, `$lt`, `$lte`: `{"$.balance": {"$gt": 100}}`
+- `$and`: `{"$and": [{"$.field1": "a"}, {"$.field2": {"$lt": 0}}]}`
+- `$or`: `{"$or": [{"$.status": "active"}, {"$.status": "pending"}]}`
+- `$exists`: `{"$.field": {"$exists": true}}`
+
+Query commands support the same pagination flags as `records list` (`--page-size`, `--page-token`, `--include-total`, `--export`, `--progress`).
+
+## Pagination
+
+For large result sets, use `--page-size` and `--page-token` to paginate:
+
+```bash
+ctxl records list --type <type-id> --page-size 50 --config-id <config-id>
+```
+
+To stream all records as JSONL, use `--export` (optionally with `--progress` for status output):
+
+```bash
+ctxl records list --type <type-id> --export --progress --config-id <config-id>
+```
+
+Maximum page size is 250. The CLI handles page-token chaining automatically during export.
+
+## Rate Limiting
+
+The CLI has no built-in retry or rate-limit handling. If the platform returns a 429 or 5xx error, the command fails immediately. When running multiple commands in sequence, pace requests and avoid tight loops. If a command fails with a transient error, wait a few seconds before retrying manually.
 
 Important write gotchas:
 
