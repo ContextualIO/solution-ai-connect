@@ -11,6 +11,16 @@ Use this skill only in environments with local shell access such as Claude Code,
 
 If shell access is unavailable, stop and tell the user this skill requires a shell-capable runtime. If docs would still help, switch to `solai-knowledge`.
 
+## Installation & Setup
+
+The Contextual CLI (`ctxl`) must be installed globally before using this skill. Requires Node.js 18.0.0 or later.
+
+```bash
+npm install -g @contextual-io/cli
+```
+
+Visit [npm/@contextual-io/cli](https://www.npmjs.com/package/@contextual-io/cli) for the latest version and release notes.
+
 ## Runtime Checks
 
 1. Confirm the environment can run shell commands.
@@ -32,6 +42,7 @@ If shell access is unavailable, stop and tell the user this skill requires a she
 - Before any `replace` or `patch` operation, show a diff or the exact planned patch flags and ask for explicit confirmation.
 - Once you know the target config, prefer `--config-id <config-id>` on tenant commands even if you already ran `ctxl config use`.
 - Use `solai-knowledge` before making detailed platform claims about flows, nodes, routing, runtime behavior, payload shapes, or implementation patterns.
+- Before starting `ctxl mcp serve`, verify the config is logged in. The server rejects expired or missing tokens at startup.
 
 ## Config Workflow
 
@@ -104,7 +115,7 @@ When inspecting a tenant, choose the track explicitly:
 
 1. If the user is asking about flows, agents, connections, AI routes, JWKS configs, authz code apps, or topics, start from the reserved component map.
 2. If the user is asking about tenant business data, schemas, records, triggers, actions, or custom objects, start with `ctxl types list`.
-3. Once you know the type ID, use `ctxl types get --type <type-id> --config-id <config-id>` to retrieve the full JSON schema — enums, patterns, constraints, defaults, and relations. This is the authoritative source for field shapes before any create or replace operation. Then use `ctxl records ... --type <type-id> --config-id <config-id>`.
+3. Once you know the type ID, use `ctxl types get native-object:<type-id> --config-id <config-id>` to retrieve the full JSON schema — enums, patterns, constraints, defaults, and relations. This is the authoritative source for field shapes before any create or replace operation. Then use `ctxl records ... --type <type-id> --config-id <config-id>`.
 
 Common reads:
 
@@ -115,11 +126,11 @@ Common reads:
 Reserved admin component examples:
 
 ```bash
-ctxl types get --type flow --config-id <config-id>
+ctxl types get native-object:flow --config-id <config-id>
 ctxl records list --type flow --config-id <config-id>
-ctxl types get --type agent --config-id <config-id>
+ctxl types get native-object:agent --config-id <config-id>
 ctxl records list --type agent --config-id <config-id>
-ctxl types get --type ai-route --config-id <config-id>
+ctxl types get native-object:ai-route --config-id <config-id>
 ctxl records list --type ai-route --config-id <config-id>
 ```
 
@@ -185,6 +196,74 @@ For record patches, show the exact `ctxl records patch ...` flags before confirm
 - Wire `log-tap` inline in the chain, not as a dead-end fork.
 - For new flows, preserve top-level `flows_cred: {}` and tab `env: []`.
 - After edits, re-read the flow and verify the change actually landed.
+
+## MCP Server
+
+`ctxl mcp serve` starts a local MCP HTTP server that bridges to live SolutionAI browser sessions. It binds to `http://localhost:5051/` by default and exposes SolutionAI tools as standard MCP tools that AI agents can call.
+
+For real-time flow interaction via AI agents, the MCP server is the preferred path over manual `records get` / `records replace` round-trips on flow records.
+
+### When to use
+
+Use the MCP server when the user wants an AI agent (Claude, Cursor, etc.) to interact with SolutionAI flows in real time — editing nodes, reading flow state, or calling flow-scoped tools through the MCP protocol.
+
+### Starting the server
+
+The active config must be logged in before starting. If auth is needed, follow the Automatic Auth Recovery flow first.
+
+```bash
+ctxl mcp serve --config-id <config-id>
+```
+
+With a specific flow pre-selected:
+
+```bash
+ctxl mcp serve --flow <flow-id> --config-id <config-id>
+```
+
+With tool name prefixing (adds `ctxl_` prefix to all tool names):
+
+```bash
+ctxl mcp serve --tool-prefix --config-id <config-id>
+```
+
+With verbose diagnostics:
+
+```bash
+ctxl mcp serve -V --config-id <config-id>
+```
+
+Custom port:
+
+```bash
+ctxl mcp serve --port 8080 --config-id <config-id>
+```
+
+### Built-in MCP tools
+
+The server always exposes two meta-tools:
+
+- `list_sessions` — lists flows with available browser sessions. A browser must be open on the flow editor for a flow to appear. Returns flow IDs and names. Accepts an optional `flowId` filter.
+- `info` — returns runtime state: tenant, interface type, connected flows, and any recent errors.
+
+All other tools are dynamically loaded from SolutionAI's tool manifest for the `flow-editor` interface (the default).
+
+### Session model
+
+- `list_sessions` is scoped to the current user and current tenant (from the active config). Other users' browser sessions never appear, even on a shared tenant.
+- The user must have the target flow open in their own browser for it to appear. If the desired flow is missing, direct the user to open it themselves.
+- If the user has the same flow open in multiple browser tabs, all tabs receive the accept dialog, but the first to accept wins the tunnel.
+- Each tool call requires a `flowId`. If `--flow` was passed at startup, that flow is used globally. Otherwise the agent must pass `flowId` with each call, or call `list_sessions` first to discover available flows.
+- The server auto-binds to flows on first tool call and caches connections for subsequent calls to the same flow.
+- The tunnel runs through the user's browser, so all actions are performed from that user's point of view.
+
+### Hard rules for MCP
+
+- Do not start the MCP server if the user has not logged in.
+- The server locks to the active config's tenant and silo at startup. Switching configs with `ctxl config use` while the server is running has no effect. If the user needs to target a different tenant, the server must be stopped and restarted with the new config.
+- Do not change the default port unless the user requests it or port 5051 is occupied.
+- The MCP server runs as a foreground process. If the user needs CLI commands alongside it, they need a separate terminal or the server must be backgrounded.
+- Do not attempt to call MCP tools via curl or HTTP directly — they are meant for MCP-compatible clients.
 
 ## Output Expectations
 

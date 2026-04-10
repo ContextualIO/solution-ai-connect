@@ -28,23 +28,141 @@ Aliases documented by the CLI:
 
 ## Types
 
-Important model:
-
-- For normal callers, `ctxl types list` is the discovery path for tenant-defined custom object types.
-- Do not assume `ctxl types list` will surface reserved admin component types.
-- For reserved admin component types, start from known IDs and fetch them directly with `ctxl types get --type TYPE` and `ctxl records ... --type TYPE`.
-- Current reserved component set used by admin-console code: `agent`, `flow`, `topics`, `api-configuration` (known to users as "Connections"), `ai-route`, `jwks-configuration`, `authorization-code-app`.
-- `ctxl types get --type <type-id>` returns the full JSON schema for any type — enums, patterns, min/max constraints, defaults, and relations. Use this as the authoritative source for field shapes before any create or replace operation.
-
 - `ctxl types add --input-file FILE`
 - `ctxl types get [URI] --type TYPE`
 - `ctxl types list [--search FIELD=VALUE] [--exact-search FIELD=VALUE] [--from FIELD=VALUE] [--to FIELD=VALUE] [--order-by FIELD:desc] [--include-total] [--page-size N] [--page-token TOKEN] [--export] [--progress]`
 - `ctxl types replace [URI] --type TYPE --input-file FILE`
 
-Aliases documented by the CLI:
+Aliases: `types create` / `types import` -> `types add`; `types search` -> `types list`
 
-- `ctxl types create` and `ctxl types import` -> same behavior as `types add`
-- `ctxl types search` -> same behavior as `types list`
+> `ctxl types list` returns custom object types only. To get the full schema of any type, custom or platform, use `ctxl types get native-object:<type-id>`. This is the authoritative source for enums, patterns, constraints, defaults, and relations.
+
+## Platform Type IDs
+
+These built-in types are managed via `ctxl records` commands:
+
+| Type ID | Description |
+|---------|-------------|
+| `flow` | Flow definitions |
+| `agent` | Agent definitions |
+| `api-configuration` | Connections |
+| `ai-route` | AI routing configuration |
+| `topics` | Topic definitions |
+| `authorization-code-app` | OAuth app config |
+| `jwks-configuration` | JWKS / key config |
+
+Get the full schema for any platform type before creating or replacing records:
+
+```bash
+ctxl types get native-object:agent --config-id <config-id>
+ctxl types get native-object:ai-route --config-id <config-id>
+```
+
+Apply the same diff, confirm, and replace discipline as flow work before any write.
+
+## Agent Records
+
+Agents are records under `--type agent`. Three agent types exist: `flow-http`, `flow-topic`, `flow-cron`.
+
+Key gotchas:
+- `image` is a runtime version string, not a Docker image.
+- `size` is a UUID, not a human label.
+- `flow` must be pinned to a specific version using the `#N` suffix.
+- `configName` is auto-generated on creation and should not be supplied.
+
+Common size UUIDs:
+- Small: `8836d51b-51f0-4417-b799-b8fb692e6a1b`
+- Medium: `97c7d433-7729-4800-ac80-086ade746541`
+- Large: `5ec9113a-0f82-479b-b465-4a7459ce53fc`
+- X-Large: `37a7f0f5-9afd-48df-8d4b-4b6fa61f8874`
+- XX-Large: `def7d31e-cc01-4605-95d0-19765d176455`
+
+### `flow-http`
+
+```json
+{
+  "name": "my-agent",
+  "type": "flow-http",
+  "displayName": "My Agent",
+  "description": "...",
+  "flow": "my-flow#6",
+  "image": "5.10.6",
+  "size": "8836d51b-51f0-4417-b799-b8fb692e6a1b",
+  "livenessTimeoutSeconds": 50,
+  "scaleType": "cpu",
+  "minReplicas": 1,
+  "maxReplicas": 1,
+  "targetCpu": 80
+}
+```
+
+### `flow-topic`
+
+```json
+{
+  "name": "my-agent",
+  "type": "flow-topic",
+  "displayName": "My Agent",
+  "description": "...",
+  "flow": "my-flow#6",
+  "entryPoint": "<entry-node-id>",
+  "image": "5.10.6",
+  "size": "8836d51b-51f0-4417-b799-b8fb692e6a1b",
+  "livenessTimeoutSeconds": 50,
+  "scaleType": "lag",
+  "minReplicas": 1,
+  "maxReplicas": 1,
+  "pollingInterval": 60,
+  "cooldownPeriod": 60,
+  "lagThreshold": 25
+}
+```
+
+### `flow-cron`
+
+```json
+{
+  "name": "my-agent",
+  "type": "flow-cron",
+  "displayName": "My Agent",
+  "description": "...",
+  "flow": "my-flow#6",
+  "entryPoint": "<entry-node-id>",
+  "schedule": "* * * * *",
+  "image": "5.10.6",
+  "size": "8836d51b-51f0-4417-b799-b8fb692e6a1b",
+  "livenessTimeoutSeconds": 50
+}
+```
+
+## Flow Work
+
+Flows are records under `--type flow`:
+
+```bash
+ctxl records list --type flow --config-id <config-id>
+ctxl records get --type flow --id <flow-id> --config-id <config-id>
+```
+
+After edits, re-read the flow and verify the change actually landed.
+
+## MCP
+
+- `ctxl mcp serve [INTERFACE] [-f FLOW-ID] [-p PORT] [-t] [-V] [-C CONFIG-ID]`
+
+Default interface is `flow-editor`. Default port is `5051`.
+
+Flags:
+
+- `-f, --flow FLOW-ID` — pre-filter sessions to a specific flow
+- `-p, --port PORT` — local HTTP port (default: 5051)
+- `-t, --tool-prefix` — prefix all MCP tool names with `ctxl_`
+- `-V, --verbose` — emit verbose MCP runtime diagnostics
+
+Built-in MCP tools exposed by the server:
+
+- `list_sessions` — discover flows with active browser sessions
+- `info` — return runtime state (tenant, interface, connections, errors)
 
 ## Global Flag
 
