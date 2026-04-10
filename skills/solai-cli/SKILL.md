@@ -148,6 +148,12 @@ For writes:
 - patch with `ctxl records patch`
 - replace with `ctxl types replace` or `ctxl records replace`
 
+Important write gotchas:
+
+- `ctxl records add` expects JSONL (one JSON object per line), not pretty-printed JSON.
+- `primaryKey` on an Object Type is immutable once deployed — get it right before the first `ctxl types add`.
+- Every record gets a `_metaData` envelope from the platform automatically. Never include `createdAt`, `updatedAt`, `hash`, `version`, or `secrets` in a schema.
+
 ## Flow Work
 
 Flows are records under `--type flow`.

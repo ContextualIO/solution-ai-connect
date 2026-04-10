@@ -3,6 +3,10 @@
     "Solution AI Knowledge": {
       "type": "http",
       "url": "https://contextual-docs-mcp.contextualio.workers.dev"
+    },
+    "ctxl-flow-editor": {
+      "type": "http",
+      "url": "http://localhost:5051/"
     }
   }
 }

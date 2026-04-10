@@ -21,10 +21,17 @@ Use this as the compact command map for `ctxl`. It tracks the current CLI README
 - `ctxl records replace [URI] --type TYPE --id ID --input-file FILE`
 - `ctxl records stats [URI] --type TYPE --id ID`
 
-Aliases documented by the CLI:
+Aliases: `records create` / `records import` -> `records add`; `records search` -> `records list`
 
-- `ctxl records create` and `ctxl records import` -> same behavior as `records add`
-- `ctxl records search` -> same behavior as `records list`
+Record input gotchas:
+- `ctxl records add` expects **JSONL** (one JSON object per line). Pretty-printed JSON throws a parse error. Use `echo '{"id":"x","name":"y"}' > file.jsonl`.
+- Flow records require a top-level `"id"` field — omitting it returns a 400 validation error. Choose a slug-style id (e.g. `"id": "my-flow"`).
+
+Minimal empty flow shape:
+
+```json
+{"id":"<flow-id>","name":"<Flow Name>","node_red_data":{"flows":[{"id":"tab1","type":"tab","label":"<Flow Name>","disabled":false,"info":"","env":[]}],"flows_cred":{}}}
+```
 
 ## Types
 
@@ -163,6 +170,41 @@ Built-in MCP tools exposed by the server:
 
 - `list_sessions` — discover flows with active browser sessions
 - `info` — return runtime state (tenant, interface, connections, errors)
+
+## Object Type Schemas
+
+When creating types with `ctxl types add`, follow these conventions:
+
+- Object type IDs must use only lowercase letters, numbers, and dashes
+- All schemas need a top-level `primaryKey` property naming the primary key field
+- **`primaryKey` is immutable once deployed** — only the default (unsaved) schema may have its primaryKey changed
+- Default primary key: auto-generated UUID — do not mark as `required`
+  ```json
+  "id": { "type": "string", "generate": { "type": "uuid", "format": "v4" } }
+  ```
+- Do not mark any auto-generated fields (UUIDs, timestamps) as `required` — they don't exist at validation time
+- Every record automatically gets a `_metaData` envelope (`createdAt`, `updatedAt`, `hash`, `id`, `schema`, `type`, `version`, `secrets`) from the platform. **Never define these fields in a schema.**
+- Relations are always a top-level schema property, defined on the child pointing to the parent:
+  ```json
+  "relations": {
+    "customer": {
+      "typeRef": "native-object:customer/id",
+      "localField": "customerId",
+      "displayField": "name"
+    }
+  }
+  ```
+- Use `description` or `$comment` for documentation — not JS-style `//` comments
+- Designate sensitive strings with `"secret": true` to encrypt in the key store
+
+## URL Patterns
+
+| Context | Pattern |
+|---------|---------|
+| Flow Editor | `https://{flowId}.flow.{tenantId}.my.contextual.io/{path}` |
+| Agent-bound service | `https://{agentId}.service.{tenantId}.my.contextual.io/{path}` |
+
+For non-prod silos, insert the silo name: `{tenantId}.my.{silo}.contextual.io`.
 
 ## Global Flag
 
