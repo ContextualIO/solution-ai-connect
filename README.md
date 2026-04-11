@@ -57,6 +57,15 @@ Example prompts:
 /ctxl:solai-cli inspect the current tenant's flow types
 ```
 
+## Publishing Updates
+
+Claude Code caches plugin files at install time and only rebuilds the cache when `plugin.json` version changes. **Content changes to skill files (SKILL.md, cli-reference.md, scripts) will not reach users until the version is bumped**, even if the changes are pushed to GitHub and the marketplace git clone is fetched.
+
+Bump `.claude-plugin/plugin.json` version on every meaningful content change:
+- Patch (`0.x.1`) — doc fixes, clarifications, typos
+- Minor (`0.x+1.0`) — new sections, new capabilities, behavioral changes
+- Major (`x+1.0.0`) — breaking changes to skill interface or hard rules
+
 ## Notes
 
 - `solai-knowledge` is the bundled docs-grounding skill and uses the `solai-knowledge-mcp` connector.
