@@ -113,6 +113,6 @@ Use the `solai-knowledge` skill to verify platform behaviour before proposing an
 1. Before proposing a schema, check if the object type already exists using `ctxl types get --type <type-id>` — this determines whether primaryKey changes are allowed
 2. For any schema feature you are uncertain about, look it up in the docs above before proposing
 3. Present the full proposed JSON schema for user review before any deployment
-4. Once the user approves, hand off to the `/solai-cli` skill for deployment — do not attempt to run `ctxl` commands directly via Bash
+4. Once the user approves, hand off to the `/solai-cli` skill for deployment — do not attempt to run `ctxl` commands directly via Bash. Doing so skips the skill's schema format reference and auth recovery, causing flag errors and wasted tokens.
 5. After creation, confirm with `ctxl types get --type <type-id>` to verify the deployed schema matches intent
 6. When designing related types, present all schemas together so relations can be reviewed as a set before any are deployed

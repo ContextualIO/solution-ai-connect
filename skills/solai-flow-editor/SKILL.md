@@ -19,6 +19,12 @@ If those tools are not available, tell the user to run this in their own termina
 ctxl mcp serve --config-id <config-id>
 ```
 
+## What this MCP server is
+
+The `ctxl-flow-editor` MCP server bridges this AI session to an active browser-based Contextual Flow Editor session. Changes made through these tools are reflected live in the browser editor — you are not editing a file.
+
+A flow session only exists when the flow is open in a browser tab. `list_sessions` reflects live browser connections. If a flow is not listed, the user needs to open it in their browser before you can work on it.
+
 ## Terminology
 
 Use these terms consistently. Never use internal engine terminology.
