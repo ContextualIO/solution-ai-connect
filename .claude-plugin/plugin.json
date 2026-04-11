@@ -5,6 +5,5 @@
   "author": {
     "name": "Contextual.io"
   },
-  "homepage": "https://docs.contextual.io/documentation-and-resources",
-  "agents": "./agents/"
+  "homepage": "https://docs.contextual.io/documentation-and-resources"
 }
