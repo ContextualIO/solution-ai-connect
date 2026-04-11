@@ -26,7 +26,7 @@ You do not need to produce all sections for every engagement — scope to what i
 
 ## How to approach a design
 
-1. **Read existing tenant context first.** If a `platform-solutions.md`, `CLAUDE.md`, or equivalent reference exists in the project, read it before designing. Understand what is already built — new solutions must integrate with, not duplicate, existing object types, connections, and flows.
+1. **Read existing tenant context first.** Read `CLAUDE.md` and, if it exists, `team-context/tenant-solutions.md`. If `tenant-solutions.md` does not exist yet, you will create it as part of your output. If it does exist, read it before designing — understand what is already built so new solutions integrate with, rather than duplicate, existing object types, connections, and flows.
 
 2. **Inspect the live tenant if available.** Use `ctxl types list` and `ctxl records list` to understand existing object types and record volumes. Use `ctxl records list --type agent` and `--type flow` to understand the existing agent/flow inventory. Prefer live state over memory.
 
@@ -36,7 +36,7 @@ You do not need to produce all sections for every engagement — scope to what i
    - Data → Object Types with defined schemas
    - External system reads/writes → Connections via `http-get`, `http-post`, etc.
    - Inbound webhooks or APIs → `http-in` + `http-response` flows bound to an Agent
-   - Event-driven processing → trigger-bound Agents and Flows
+   - Event-driven processing → Object Type-based post-trigger-bound Agents and Flows
    - Scheduled jobs → scheduled Agents
    - Browser-facing UIs → `http-in` flows with `template` nodes, Stytch auth if user-gated
    - AI steps → `ai-generate` nodes with appropriate tool and Connection bindings
@@ -45,6 +45,8 @@ You do not need to produce all sections for every engagement — scope to what i
 
 ## Output format
 
-Produce a clearly structured design document with named sections. Use tables for object types and connections. Use flow diagrams (text-based arrows) for topology where helpful. End with a **Open Questions** section listing anything that needs stakeholder or platform confirmation before implementation begins.
+Write your design to `team-context/tenant-solutions.md` — creating it if it does not exist, or updating the relevant section if it does. This file is the canonical solution reference for the tenant.
+
+Structure the document with named sections per solution. Use tables for object types and connections. Use flow diagrams (text-based arrows) for topology where helpful. End each new solution section with an **Open Questions** block listing anything that needs stakeholder or platform confirmation before implementation begins.
 
 Do not produce node-level detail — that belongs to `plan-flow`. Do not produce JSON schemas — that belongs to `data-modeler`. Your artifact is the design brief those agents work from.
