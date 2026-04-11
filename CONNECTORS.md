@@ -1,15 +1,19 @@
 # Connectors
 
-- `solai-knowledge-mcp` -> `https://contextual-docs-mcp.contextualio.workers.dev`
+## Solution AI Knowledge
 
-`solai-knowledge-mcp` tools:
+`https://contextual-docs-mcp.contextualio.workers.dev` (remote, always available)
 
-- `search`
-- `list_paths`
-- `list_headings`
-- `read_chunk_context`
-- `read_section`
-- `read_page`
-- `list_versions`
+Tools: `search`, `list_paths`, `list_headings`, `read_chunk_context`, `read_section`, `read_page`, `list_versions`
 
-Shell-based tenant work does not use a bundled local MCP. Use the `solai-cli` skill in runtimes with local shell access.
+## ctxl-flow-editor
+
+`http://localhost:5051/` (local, requires `ctxl mcp serve` to be running)
+
+Bridges to live SolutionAI browser sessions via the Contextual CLI. Start the server before use:
+
+```bash
+ctxl mcp serve --config-id <config-id>
+```
+
+See the `solai-cli` skill for full MCP server documentation.
