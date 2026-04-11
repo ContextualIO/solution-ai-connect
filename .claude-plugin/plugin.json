@@ -1,6 +1,6 @@
 {
   "name": "ctxl",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "description": "Solution AI Connect bundle — docs-grounding, shell-first CLI, live flow editing, and Object Type schema design for Contextual.io.",
   "author": {
     "name": "Contextual.io"
