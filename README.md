@@ -25,7 +25,8 @@ Work with Contextual from Claude using four skills:
 - `skills/solai-cli/scripts/json_diff.py` - diff preview helper for replace flows
 - `skills/solai-flow-editor/` - live flow editor skill
 - `skills/solai-data-modeler/` - Object Type schema design skill
-- `agents/` - Contextual subagents (flow-editor, data-modeler, docs-reader, plan-flow, implement, seed-builder)
+- `agents/` - Contextual subagents (solution-architect, plan-flow, flow-editor, data-modeler, docs-reader, seed-builder) — see `docs/agents.md` for the full workflow
+- `docs/agents.md` - agent lineup, workflow, and per-project suppression guide
 
 ## Install in Cowork
 
@@ -51,10 +52,22 @@ After install, you should see namespaced skills like:
 
 ## Install in Claude Code
 
-From this directory:
+**CLI (session-scoped):** load the plugin for a single session from this directory:
 
 ```bash
 claude --plugin-dir .
+```
+
+Add `--debug` to write a timestamped log file to `~/.claude/debug/` — useful for verifying that agents and skills loaded correctly:
+
+```bash
+claude --plugin-dir . --debug
+```
+
+**IDE extension (VSCode / Cursor):** the extension has no `--plugin-dir` equivalent. Install to user scope instead, then the plugin is available in all IDE sessions automatically:
+
+```bash
+claude plugin add .
 ```
 
 Example prompts:
@@ -102,8 +115,9 @@ Bump `.claude-plugin/plugin.json` version on every meaningful content change:
 - `solai-cli` expects `ctxl` to already be installed and available on the machine.
 - `solai-flow-editor` requires the `ctxl mcp serve` server to be running in a persistent terminal. The skill connects to it — it does not start it.
 - `solai-data-modeler` pairs with `solai-cli` for deployment and `solai-knowledge` for doc-backed schema verification.
-- Plugin agents (`agents/`) are installed globally and available across all projects. Note: plugin agents do not support `mcpServers` in frontmatter — MCP access is provided through the plugin's bundled connectors.
-- the repo name is `solution-ai-connect`, while the Claude plugin namespace stays `ctxl`
+- Plugin agents (`agents/`) are installed globally and available across all projects. To suppress a specific agent at project level, add `"permissions": { "deny": ["Agent(agent-name)"] }` to `.claude/settings.json`. To replace one with a local version, drop a `.claude/agents/<name>.md` in the project. See `docs/agents.md` for details.
+- Plugin agents do not support `mcpServers` in frontmatter — MCP access is provided through the plugin's bundled connectors.
+- The repo name is `solution-ai-connect`, while the Claude plugin namespace stays `ctxl`.
 - `skills/solai-knowledge/` and `skills/solai-cli/` are linked into this plugin as Git submodules from `ContextualIO`.
 - Replace operations should be previewed with a diff and explicitly confirmed before writing.
 - This plugin does not expose delete/remove flows for tenant operations.
