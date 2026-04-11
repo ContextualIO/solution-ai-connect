@@ -53,6 +53,21 @@ These can run in parallel if the object type design is sufficiently stable.
 - `seed-builder` generates test fixtures and inject node payloads to exercise the implementation
 - `docs-reader` is available throughout for platform behaviour lookups
 
+## Opting Out of Specific Agents
+
+Plugin agents can be suppressed per-project without disabling the whole plugin.
+
+**Suppress without replacing** — add to `.claude/settings.json` in the project:
+```json
+{
+  "permissions": {
+    "deny": ["Agent(solution-architect)", "Agent(seed-builder)"]
+  }
+}
+```
+
+**Replace with a local version** — drop a `.claude/agents/<name>.md` in the project. The project-level definition fully overrides the plugin version; both do not appear simultaneously.
+
 ## Notes
 
 - Plugin agents do not support `mcpServers` in frontmatter — MCP access is provided through the plugin's bundled connectors.
