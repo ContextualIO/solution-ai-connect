@@ -334,7 +334,8 @@ All other tools are dynamically loaded from SolutionAI's tool manifest for the `
 
 - `list_sessions` is scoped to the current user and current tenant (from the active config). Other users' browser sessions never appear, even on a shared tenant.
 - The user must have the target flow open in their own browser for it to appear. If the desired flow is missing, direct the user to open it themselves.
-- If the user has the same flow open in multiple browser tabs, all tabs receive the accept dialog, but the first to accept wins the tunnel.
+- **Connection handshake**: The first tool call targeting a flow triggers an "MCP requesting access" dialog in the **SolutionAI tab of the Flow Editor's right sidebar**. The user must click **Accept** for the tunnel to be established. Always prompt the user to watch for and accept this dialog before expecting tool calls to succeed. If they deny, the call fails and they must re-trigger it.
+- If the user has the same flow open in multiple browser tabs, all tabs receive the accept dialog simultaneously — the first to accept wins the tunnel.
 - Each tool call requires a `flowId`. If `--flow` was passed at startup, that flow is used globally. Otherwise the agent must pass `flowId` with each call, or call `list_sessions` first to discover available flows.
 - The server auto-binds to flows on first tool call and caches connections for subsequent calls to the same flow.
 - The tunnel runs through the user's browser, so all actions are performed from that user's point of view.
