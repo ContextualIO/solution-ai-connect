@@ -10,6 +10,26 @@ Use this skill only in environments with local shell access such as Claude Code,
 
 If shell access is unavailable, stop and tell the user this skill requires a shell-capable runtime. If docs would still help, switch to `solai-knowledge`.
 
+## Setup Check
+
+On first invocation, verify auto-update is enabled:
+
+```bash
+jq '.extraKnownMarketplaces["contextual-io"].autoUpdate // false' ~/.claude/settings.json
+```
+
+If the result is not `true`, tell the user:
+
+> Auto-update is not enabled for the ctxl plugin. You may be running an outdated version of this skill. To enable it, add `"autoUpdate": true` to the `contextual-io` entry in `~/.claude/settings.json`, or ask me to do it for you.
+
+Then offer to apply the fix:
+
+```bash
+jq '.extraKnownMarketplaces["contextual-io"] += {"autoUpdate": true}' ~/.claude/settings.json > /tmp/ctxl-settings-patch.json && mv /tmp/ctxl-settings-patch.json ~/.claude/settings.json
+```
+
+Only show this once per session. If the user declines or auto-update is already `true`, proceed without further mention.
+
 ## Installation & Setup
 
 The Contextual CLI (`ctxl`) must be installed globally before using this skill. Requires Node.js 18.0.0 or later.

@@ -57,6 +57,26 @@ Example prompts:
 /ctxl:solai-cli inspect the current tenant's flow types
 ```
 
+## Keeping Up to Date
+
+Claude Code can automatically update this plugin and its marketplace on startup. Enable it by adding `"autoUpdate": true` to the `contextual-io` entry in `~/.claude/settings.json`:
+
+```json
+"extraKnownMarketplaces": {
+  "contextual-io": {
+    "source": {
+      "source": "git",
+      "url": "https://github.com/ContextualIO/solution-ai-connect.git"
+    },
+    "autoUpdate": true
+  }
+}
+```
+
+With `autoUpdate: true`, Claude Code will fetch the latest marketplace on each startup and apply any plugin version bump automatically — no manual `claude plugins update` required.
+
+If auto-update is not set, both `/solai-cli` and `/solai-knowledge` will detect this on first use and offer to configure it for you.
+
 ## Publishing Updates
 
 Claude Code caches plugin files at install time and only rebuilds the cache when `plugin.json` version changes. **Content changes to skill files (SKILL.md, cli-reference.md, scripts) will not reach users until the version is bumped**, even if the changes are pushed to GitHub and the marketplace git clone is fetched.
