@@ -342,6 +342,8 @@ All other tools are dynamically loaded from SolutionAI's tool manifest for the `
 
 ### Hard rules for MCP
 
+- **Never run `ctxl mcp serve` yourself.** The server must be started by the user in their own persistent terminal — any process the agent starts via shell is ephemeral and dies immediately. It cannot serve MCP tools.
+- **If `mcp__ctxl-flow-editor__*` tools appear in the deferred tool list, the server is already running.** Do not start another one. Load the tool schemas and call `info`/`list_sessions` to verify the connection. If the tools are not in the deferred list, tell the user to run `ctxl mcp serve --config-id <config-id>` in their own terminal.
 - Do not start the MCP server if the user has not logged in.
 - The server locks to the active config's tenant and silo at startup. Switching configs with `ctxl config use` while the server is running has no effect. If the user needs to target a different tenant, the server must be stopped and restarted with the new config.
 - Do not change the default port unless the user requests it or port 5051 is occupied.
