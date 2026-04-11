@@ -6,10 +6,12 @@ Solution AI Connect is the branded Claude bundle for SolAI skills.
 - Claude plugin namespace: `ctxl`
 - GitHub org: `ContextualIO`
 
-Work with Contextual from Claude in two ways:
+Work with Contextual from Claude using four skills:
 
 - `solai-knowledge` for docs-grounded product and platform answers
 - `solai-cli` for shell-first tenant inspection and safe edits in local coding agents
+- `solai-flow-editor` for live flow editing via the `ctxl-flow-editor` MCP server
+- `solai-data-modeler` for designing and validating Contextual Object Type schemas
 
 ## Included files
 
@@ -21,6 +23,8 @@ Work with Contextual from Claude in two ways:
 - `skills/solai-cli/cli-reference.md` - compact `ctxl` command reference
 - `skills/solai-cli/scripts/contextual_login.py` - browser login helper
 - `skills/solai-cli/scripts/json_diff.py` - diff preview helper for replace flows
+- `skills/solai-flow-editor/` - live flow editor skill
+- `skills/solai-data-modeler/` - Object Type schema design skill
 
 ## Install in Cowork
 
@@ -41,6 +45,8 @@ After install, you should see namespaced skills like:
 
 - `/ctxl:solai-knowledge`
 - `/ctxl:solai-cli`
+- `/ctxl:solai-flow-editor`
+- `/ctxl:solai-data-modeler`
 
 ## Install in Claude Code
 
@@ -55,6 +61,8 @@ Example prompts:
 ```text
 /ctxl:solai-knowledge explain flow-http path behavior
 /ctxl:solai-cli inspect the current tenant's flow types
+/ctxl:solai-flow-editor add a log-tap node after the ai-generate node
+/ctxl:solai-data-modeler design a schema for a customer order type
 ```
 
 ## Keeping Up to Date
@@ -91,6 +99,8 @@ Bump `.claude-plugin/plugin.json` version on every meaningful content change:
 - `solai-knowledge` is the bundled docs-grounding skill and uses the `solai-knowledge-mcp` connector.
 - `solai-cli` requires a runtime with local shell access such as Claude Code, Claude Cowork, OpenCode, or Codex.
 - `solai-cli` expects `ctxl` to already be installed and available on the machine.
+- `solai-flow-editor` requires the `ctxl mcp serve` server to be running in a persistent terminal. The skill connects to it — it does not start it.
+- `solai-data-modeler` pairs with `solai-cli` for deployment and `solai-knowledge` for doc-backed schema verification.
 - the repo name is `solution-ai-connect`, while the Claude plugin namespace stays `ctxl`
 - `skills/solai-knowledge/` and `skills/solai-cli/` are linked into this plugin as Git submodules from `ContextualIO`.
 - Replace operations should be previewed with a diff and explicitly confirmed before writing.
