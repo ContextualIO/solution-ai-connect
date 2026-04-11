@@ -1,6 +1,6 @@
 {
   "name": "ctxl",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "Solution AI Connect bundle with Solution AI knowledge and a shell-first Solution AI CLI skill for local coding agents.",
   "author": {
     "name": "Contextual.io"
