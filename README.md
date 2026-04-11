@@ -25,6 +25,7 @@ Work with Contextual from Claude using four skills:
 - `skills/solai-cli/scripts/json_diff.py` - diff preview helper for replace flows
 - `skills/solai-flow-editor/` - live flow editor skill
 - `skills/solai-data-modeler/` - Object Type schema design skill
+- `agents/` - Contextual subagents (flow-editor, data-modeler, docs-reader, plan-flow, implement, seed-builder)
 
 ## Install in Cowork
 
@@ -101,6 +102,7 @@ Bump `.claude-plugin/plugin.json` version on every meaningful content change:
 - `solai-cli` expects `ctxl` to already be installed and available on the machine.
 - `solai-flow-editor` requires the `ctxl mcp serve` server to be running in a persistent terminal. The skill connects to it — it does not start it.
 - `solai-data-modeler` pairs with `solai-cli` for deployment and `solai-knowledge` for doc-backed schema verification.
+- Plugin agents (`agents/`) are installed globally and available across all projects. Note: plugin agents do not support `mcpServers` in frontmatter — MCP access is provided through the plugin's bundled connectors.
 - the repo name is `solution-ai-connect`, while the Claude plugin namespace stays `ctxl`
 - `skills/solai-knowledge/` and `skills/solai-cli/` are linked into this plugin as Git submodules from `ContextualIO`.
 - Replace operations should be previewed with a diff and explicitly confirmed before writing.
