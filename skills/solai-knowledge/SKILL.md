@@ -7,6 +7,26 @@ description: Ground Solution AI and Contextual product answers in docs before re
 
 Use this skill for product and platform questions where doc-backed answers are safer than memory.
 
+## Setup Check
+
+On first invocation, verify auto-update is enabled:
+
+```bash
+jq '.extraKnownMarketplaces["contextual-io"].autoUpdate // false' ~/.claude/settings.json
+```
+
+If the result is not `true`, tell the user:
+
+> Auto-update is not enabled for the ctxl plugin. You may be running an outdated version of this skill. To enable it, add `"autoUpdate": true` to the `contextual-io` entry in `~/.claude/settings.json`, or ask me to do it for you.
+
+Then offer to apply the fix:
+
+```bash
+jq '.extraKnownMarketplaces["contextual-io"] += {"autoUpdate": true}' ~/.claude/settings.json > /tmp/ctxl-settings-patch.json && mv /tmp/ctxl-settings-patch.json ~/.claude/settings.json
+```
+
+Only show this once per session. If the user declines or auto-update is already `true`, proceed without further mention.
+
 ## Use These Tools
 
 Use tools from the `solai-knowledge-mcp` server:

@@ -10,6 +10,26 @@ Use this skill only in environments with local shell access such as Claude Code,
 
 If shell access is unavailable, stop and tell the user this skill requires a shell-capable runtime. If docs would still help, switch to `solai-knowledge`.
 
+## Setup Check
+
+On first invocation, verify auto-update is enabled:
+
+```bash
+jq '.extraKnownMarketplaces["contextual-io"].autoUpdate // false' ~/.claude/settings.json
+```
+
+If the result is not `true`, tell the user:
+
+> Auto-update is not enabled for the ctxl plugin. You may be running an outdated version of this skill. To enable it, add `"autoUpdate": true` to the `contextual-io` entry in `~/.claude/settings.json`, or ask me to do it for you.
+
+Then offer to apply the fix:
+
+```bash
+jq '.extraKnownMarketplaces["contextual-io"] += {"autoUpdate": true}' ~/.claude/settings.json > /tmp/ctxl-settings-patch.json && mv /tmp/ctxl-settings-patch.json ~/.claude/settings.json
+```
+
+Only show this once per session. If the user declines or auto-update is already `true`, proceed without further mention.
+
 ## Installation & Setup
 
 The Contextual CLI (`ctxl`) must be installed globally before using this skill. Requires Node.js 18.0.0 or later.
@@ -314,13 +334,16 @@ All other tools are dynamically loaded from SolutionAI's tool manifest for the `
 
 - `list_sessions` is scoped to the current user and current tenant (from the active config). Other users' browser sessions never appear, even on a shared tenant.
 - The user must have the target flow open in their own browser for it to appear. If the desired flow is missing, direct the user to open it themselves.
-- If the user has the same flow open in multiple browser tabs, all tabs receive the accept dialog, but the first to accept wins the tunnel.
+- **Connection handshake**: The first tool call targeting a flow triggers an "MCP requesting access" dialog in the **SolutionAI tab of the Flow Editor's right sidebar**. The user must click **Accept** for the tunnel to be established. Always prompt the user to watch for and accept this dialog before expecting tool calls to succeed. If they deny, the call fails and they must re-trigger it.
+- If the user has the same flow open in multiple browser tabs, all tabs receive the accept dialog simultaneously — the first to accept wins the tunnel.
 - Each tool call requires a `flowId`. If `--flow` was passed at startup, that flow is used globally. Otherwise the agent must pass `flowId` with each call, or call `list_sessions` first to discover available flows.
 - The server auto-binds to flows on first tool call and caches connections for subsequent calls to the same flow.
 - The tunnel runs through the user's browser, so all actions are performed from that user's point of view.
 
 ### Hard rules for MCP
 
+- **Never run `ctxl mcp serve` yourself.** The server must be started by the user in their own persistent terminal — any process the agent starts via shell is ephemeral and dies immediately. It cannot serve MCP tools.
+- **If `mcp__ctxl-flow-editor__*` tools appear in the deferred tool list, the server is already running.** Do not start another one. Load the tool schemas and call `info`/`list_sessions` to verify the connection. If the tools are not in the deferred list, tell the user to run `ctxl mcp serve --config-id <config-id>` in their own terminal.
 - Do not start the MCP server if the user has not logged in.
 - The server locks to the active config's tenant and silo at startup. Switching configs with `ctxl config use` while the server is running has no effect. If the user needs to target a different tenant, the server must be stopped and restarted with the new config.
 - Do not change the default port unless the user requests it or port 5051 is occupied.
