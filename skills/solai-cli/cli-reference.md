@@ -27,10 +27,66 @@ Record input gotchas:
 - `ctxl records add` expects **JSONL** (one JSON object per line). Pretty-printed JSON throws a parse error. Use `echo '{"id":"x","name":"y"}' > file.jsonl`.
 - Flow records require a top-level `"id"` field — omitting it returns a 400 validation error. Choose a slug-style id (e.g. `"id": "my-flow"`).
 
-Minimal empty flow shape:
+### Correct empty flow shape
+
+Flow records have a required internal structure. Getting this wrong produces a flow record that silently fails to open in the editor with no error message.
+
+**Critical structural rules:**
+- Tab `id` values must be **16-character lowercase hex strings** (e.g. `"aadb6bbe8c6cd017"`). A slug like `"tab1"` looks valid but breaks the editor.
+- Every flow must include a `native-object-config` config node with `"id": "default-native-object-config"`. Its `name` field must be set to the **active config's tenant ID** (run `ctxl config current --json` to confirm).
+- `flows_cred: {}` must be **inside `node_red_data`**, not at the top level.
+- Do **not** include `_metaData` — the platform generates it automatically.
+
+**Single-tab empty flow** (reference shape, pretty-printed for readability — minify to one line before passing to `ctxl records add`):
 
 ```json
-{"id":"<flow-id>","name":"<Flow Name>","node_red_data":{"flows":[{"id":"tab1","type":"tab","label":"<Flow Name>","disabled":false,"info":"","env":[]}],"flows_cred":{}}}
+{
+  "id": "my-flow",
+  "name": "My Flow",
+  "description": "Optional description",
+  "node_red_data": {
+    "flows": [
+      {
+        "id": "aadb6bbe8c6cd017",
+        "type": "tab",
+        "label": "Flow 1",
+        "disabled": false,
+        "info": "",
+        "env": []
+      },
+      {
+        "id": "default-native-object-config",
+        "type": "native-object-config",
+        "name": "<tenant-id>"
+      }
+    ],
+    "flows_cred": {}
+  }
+}
+```
+
+**Two-tab flow with nodes** — nodes belong to a tab via the `z` field (must match the tab's hex `id`):
+
+```json
+{
+  "id": "my-flow",
+  "name": "My Flow",
+  "node_red_data": {
+    "flows": [
+      {"id": "aadb6bbe8c6cd017", "type": "tab", "label": "Tab 1", "disabled": false, "info": "", "env": []},
+      {"id": "8016b31394f01fbf", "type": "tab", "label": "Tab 2", "disabled": false, "info": "", "env": []},
+      {"id": "default-native-object-config", "type": "native-object-config", "name": "<tenant-id>"},
+      {"id": "e0a5c06a89566f9c", "type": "comment", "z": "aadb6bbe8c6cd017", "name": "Tab 1 comment", "info": "", "x": 180, "y": 100, "wires": []},
+      {"id": "7916c3f31b6a7a1d", "type": "comment", "z": "8016b31394f01fbf", "name": "Tab 2 comment", "info": "", "x": 180, "y": 100, "wires": []}
+    ],
+    "flows_cred": {}
+  }
+}
+```
+
+To generate a valid 16-char hex tab ID:
+```bash
+python3 -c "import secrets; print(secrets.token_hex(8))"
 ```
 
 ## Types
