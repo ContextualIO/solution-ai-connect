@@ -107,6 +107,8 @@ Changed lines are highlighted in the editor. Do not call `tray_commit` after cod
 - **Prefer `wire` for all connection changes** — it is explicit, targeted, and reliable. `node_update` does not manage wires; wires are maintained by the editor's link layer and must be set via `wire`. Never attempt to set wires through `node_update`.
 - After any wiring changes, call `flow_read` on the affected tab and audit wires on every node added or modified in this task
 - Trace each changed path end-to-end from entry node to terminal. Scope to paths in focus, not the entire flow.
+- **Never diagnose wiring from screenshots alone.** Long wires running across the canvas can visually appear to originate from nearby nodes. Before accepting a suspected fan-out or race condition, call `flow_read` and check the node's `wires` array and `outputs` count. A wire that looks like a second output from a node may be a long wire from an upstream node passing through that region of the canvas.
+- **Route bypass wires off-axis.** When a branch skips a section of the chain (e.g. an early-exit path bypassing several nodes to reach a terminal), run that wire at a y-level clearly offset from the main chain — not along the same horizontal plane as the nodes it bypasses. Wires that share the y-level of nearby nodes are easily mistaken for connections to those nodes.
 
 ## Deployment discipline
 
