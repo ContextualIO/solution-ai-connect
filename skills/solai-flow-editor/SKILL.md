@@ -11,7 +11,7 @@ Use this skill to interact with live Contextual flows through the `ctxl-flow-edi
 
 The MCP server must already be running in the user's own terminal — never start it yourself. Any process started via shell from this context is ephemeral and dies immediately.
 
-**If `mcp__ctxl-flow-editor__*` tools appear in the deferred tool list, the server is already up.** Load the tool schemas and call `info` / `list_sessions` to verify the connection.
+**If `mcp__ctxl-flow-editor__*` tools appear in the deferred tool list, the MCP server is running** — but this does not mean any flow sessions are active. Load the tool schemas and call `list_sessions` to check for live browser connections. Only proceed with flow editing if `list_sessions` returns sessions. If it returns none, the user needs to open the target flow in their browser first.
 
 If those tools are not available, tell the user to run this in their own terminal first:
 

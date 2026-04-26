@@ -265,15 +265,20 @@ When summarizing a flow, inspect `node_red_data.flows` and report:
 
 For flow edits:
 
-**Preferred path: Flow Editor Session via MCP tunnel.** Before editing a flow via CLI, check whether `mcp__ctxl-flow-editor__*` tools are available in the deferred tool list. If they are, a Flow Editor session is active (via the Ctxl Tool desktop app or a manually started MCP server) and you should strongly recommend using the `solai-flow-editor` skill instead. Reasons to prefer it:
+**Preferred path: Flow Editor Session via MCP tunnel.** Before editing a flow via CLI:
 
-- Changes are staged live in the editor and visible before the flow is saved or versioned — the user can review and undo before committing
-- Node-level granularity — individual nodes can be added, wired, and updated without touching the full flow JSON
-- Safer for large or complex flows where a full-record replace risks corrupting structure
+1. Check whether `mcp__ctxl-flow-editor__*` tools appear in the deferred tool list — if they do, the MCP server is running (Ctxl Tool or manual `ctxl mcp serve`).
+2. If the tools are present, call `list_sessions` to check for active browser sessions. **Tool availability alone does not mean a session exists** — a session only exists when the user has the flow open in their browser.
+3. Only if `list_sessions` returns one or more sessions, recommend the live editor path and offer to switch to `solai-flow-editor`. Reasons to prefer it:
+   - Changes are staged live and visible before the flow is saved or versioned
+   - Node-level granularity — no need to touch the full flow JSON
+   - Safer for large or complex flows where a full-record replace risks corrupting structure
 
-Tell the user: "I can see a Flow Editor session is available — I can make these changes live in the editor so you can review them before saving. Would you like to do that, or continue via CLI?"
+   Tell the user: "I can see a Flow Editor session is available — I can make these changes live in the editor so you can review them before saving. Would you like to do that, or continue via CLI?"
 
-If the tools are not available, proceed with the CLI path below and optionally note that opening the Ctxl Tool and the flow in a browser would enable the live editing experience.
+4. If no sessions are returned, proceed with the CLI path below. Optionally note that opening the flow in a browser would enable the live editing experience.
+
+If the tools are not available at all, proceed directly with the CLI path and optionally note that opening the Ctxl Tool would enable live editing.
 
 **CLI path (when MCP tunnel is unavailable or user prefers it):**
 
