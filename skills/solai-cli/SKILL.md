@@ -263,7 +263,36 @@ When summarizing a flow, inspect `node_red_data.flows` and report:
 - major branches
 - referenced record types
 
-For flow edits:
+For creating new flows:
+
+**Always use the CLI-stub + flow editor handoff pattern.** Never try to write complex node content (HTML, JavaScript, multi-line logic) through the CLI — shell escaping across Python/JSON/JS layers is error-prone and unreliable.
+
+**Step 1 — Clarify flow type before generating anything:**
+Ask the user: "Is this an HTTP flow (serves requests), an event flow (triggered by object-type events or agents), or a scheduled flow (cron)?" The skeleton structure differs by type.
+
+**Step 2 — Create a minimal but complete skeleton via CLI:**
+
+Generate hex IDs for all nodes (see cli-reference.md). Build the skeleton with:
+- The structural nodes (entry, stub function, terminal)
+- Full error handling chain from the start — a flow that opens lint-clean is the goal
+
+| Flow type | Skeleton |
+|-----------|---------|
+| HTTP | `http-in` → `function` (stub) → `http-response 200` + `catch` (uncaught) → `log-tap` (error/full) → `http-response 500` |
+| Event | `contextual-start` → `function` (stub) → `contextual-end` + `catch` (uncaught) → `log-tap` (error/full) → `contextual-end` |
+| Scheduled | `inject` (cron) → `function` (stub) → `contextual-end` + `catch` (uncaught) → `log-tap` (error/full) → `contextual-end` |
+
+Stub function node content: `// TODO: implement\nreturn msg;`
+
+Always write the flow JSON to a file using a Python heredoc (`<< 'PYEOF'`) — never inline complex content in a shell command. See cli-reference.md for the correct file-based approach.
+
+**Step 3 — Hand off to the flow editor:**
+
+After creating the flow, tell the user: "The flow skeleton is created with error handling in place — open it in your browser and I can build out the logic interactively through the Flow Editor, which is much cleaner for complex node content."
+
+---
+
+For editing existing flows:
 
 **Preferred path: Flow Editor Session via MCP tunnel.** Before editing a flow via CLI:
 
@@ -283,7 +312,7 @@ If the tools are not available at all, proceed directly with the CLI path and op
 **CLI path (when MCP tunnel is unavailable or user prefers it):**
 
 1. Fetch the current flow to a temp file.
-2. Create the proposed edited file.
+2. Create the proposed edited file using Python — never inline complex content in shell flags.
 3. Preview the diff:
 
 ```bash

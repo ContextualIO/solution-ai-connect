@@ -89,6 +89,67 @@ To generate a valid 16-char hex tab ID, tell the user: "Generating a random node
 python3 -c "import secrets; print(secrets.token_hex(8))"
 ```
 
+### Flow skeleton patterns
+
+When creating a new flow, always include error handling from the start so the flow opens lint-clean. Use these skeletons based on flow type. Generate all node IDs upfront, write the JSON via Python heredoc (never inline in a shell flag), minify to JSONL before passing to `ctxl records add`.
+
+**HTTP flow** — `http-in` → `function` (stub) → `http-response 200` + `catch` → `log-tap` → `http-response 500`:
+```python
+# python3 << 'PYEOF'
+import json, secrets
+
+tab     = secrets.token_hex(8)
+h_in    = secrets.token_hex(8)
+fn      = secrets.token_hex(8)
+h_ok    = secrets.token_hex(8)
+catch   = secrets.token_hex(8)
+logtap  = secrets.token_hex(8)
+h_err   = secrets.token_hex(8)
+
+flow = {
+  "id": "my-http-flow", "name": "My HTTP Flow",
+  "node_red_data": {
+    "flows": [
+      {"id": tab,   "type": "tab",                    "label": "Main", "disabled": False, "info": "", "env": []},
+      {"id": "default-native-object-config", "type": "native-object-config", "name": "<tenant-id>"},
+      {"id": h_in,  "type": "http in",                "z": tab, "name": "GET /",       "url": "/",    "method": "get",   "x": 120, "y": 120, "wires": [[fn]]},
+      {"id": fn,    "type": "function",               "z": tab, "name": "Handler",     "func": "// TODO: implement\nreturn msg;", "outputs": 1, "x": 360, "y": 120, "wires": [[h_ok]]},
+      {"id": h_ok,  "type": "http response",          "z": tab, "name": "",            "statusCode": "200",  "x": 560, "y": 120, "wires": []},
+      {"id": catch, "type": "catch",                  "z": tab, "name": "Catch",       "scope": None, "uncaught": True,  "x": 120, "y": 240, "wires": [[logtap]]},
+      {"id": logtap,"type": "log-tap",                "z": tab, "name": "Log Error",   "level": "error", "outputProperty": "", "outputPropertyType": "full", "toConsole": False, "toSideBar": True, "outputs": 1, "x": 340, "y": 240, "wires": [[h_err]]},
+      {"id": h_err, "type": "http response",          "z": tab, "name": "",            "statusCode": "500",  "x": 540, "y": 240, "wires": []}
+    ],
+    "flows_cred": {}
+  }
+}
+with open('/tmp/my-http-flow.jsonl', 'w') as f:
+    f.write(json.dumps(flow) + '\n')
+print('Written')
+# PYEOF
+```
+
+**Event flow** — `contextual-start` → `function` (stub) → `contextual-end` + `catch` → `log-tap` → `contextual-end`:
+Replace `http-in`/`http-response` with `contextual-start`/`contextual-end`. The catch chain terminal is also `contextual-end` (not `http-response`).
+
+**Scheduled flow** — same as event but entry node is `inject` with a cron schedule instead of `contextual-start`.
+
+After creating, tell the user to open the flow in their browser so refinements can be made interactively through the Flow Editor rather than via CLI string manipulation.
+
+### Writing complex flow content
+
+Never inline HTML, JavaScript, or multi-line strings in shell flags — shell expansion will corrupt the content. Always write to a file using a Python heredoc:
+
+```bash
+python3 << 'PYEOF'
+import json
+
+content = """your complex content here"""
+# build and write JSON
+PYEOF
+```
+
+The single-quoted `'PYEOF'` delimiter prevents all shell expansion inside the block.
+
 ## Types
 
 - `ctxl types add --input-file FILE`
