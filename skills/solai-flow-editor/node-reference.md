@@ -59,7 +59,9 @@ When logging the full `msg` object:
 
 ## HTTP nodes — use Contextual Connection-native nodes
 
-For all outbound HTTP communication, use Contextual Connection-native nodes. **Never use the generic `http request` node.**
+**Any time you consider using the generic `http request` node, stop — use the appropriate Connection-native node instead.** The only exception is if the user has explicitly asked for `http request` or given a specific reason to use it.
+
+For all outbound HTTP communication, use Contextual Connection-native nodes.
 
 | Operation | Node |
 |-----------|------|
