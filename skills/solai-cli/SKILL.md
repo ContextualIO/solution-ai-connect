@@ -300,7 +300,7 @@ For record patches, show the exact `ctxl records patch ...` flags before confirm
 - Treat event-trigger payload data as `msg.payload` unless docs clearly say otherwise.
 - `log-tap` must have `outputs: 1` and a valid `level`.
 - Wire `log-tap` inline in the chain, not as a dead-end fork.
-- For new flows, preserve top-level `flows_cred: {}` and tab `env: []`.
+- `flows_cred: {}` must be inside `node_red_data`, not at the top level of the flow record.
 - After edits, re-read the flow and verify the change actually landed.
 
 ## MCP Server
