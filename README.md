@@ -95,10 +95,13 @@ Both `/solai-cli` and `/solai-knowledge` will check for updates automatically on
 
 Claude Code caches plugin files at install time and only rebuilds the cache when `plugin.json` version changes. **Content changes to skill files (SKILL.md, cli-reference.md, scripts) will not reach users until the version is bumped**, even if the changes are pushed to GitHub and the marketplace git clone is fetched.
 
-Bump `.claude-plugin/plugin.json` version on every meaningful content change:
-- Patch (`0.x.1`) — doc fixes, clarifications, typos
-- Minor (`0.x+1.0`) — new sections, new capabilities, behavioral changes
-- Major (`x+1.0.0`) — breaking changes to skill interface or hard rules
+Bump `.claude-plugin/plugin.json` version on every meaningful content change. Prefer **frequent patch releases** over batching — `claude plugin update` treats a patch bump identically to a minor bump, so users benefit from updates sooner with no extra friction.
+
+- Patch (`0.7.x`) — any content change: corrections, new guidance, clarifications, behavioral tweaks. Default for most changes.
+- Minor (`0.x+1.0`) — new skills, new agents, or changes that alter the skill interface in a meaningful way.
+- Major (`x+1.0.0`) — breaking changes to skill interface or hard rules.
+
+**When in doubt, patch.** A small bump ships fast; batching causes users to run stale content longer than necessary.
 
 ## Contributing
 
