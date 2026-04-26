@@ -31,11 +31,13 @@ Only run this check once per session.
 
 The Contextual CLI (`ctxl`) must be installed globally before using this skill. Requires Node.js 18.0.0 or later.
 
+Install via npm (or your preferred Node package manager — `pnpm`, `yarn`, `bun`, etc.):
+
 ```bash
 npm install -g @contextual-io/cli
 ```
 
-Visit [npm/@contextual-io/cli](https://www.npmjs.com/package/@contextual-io/cli) for the latest version and release notes.
+If the user has a preferred package manager or install method, defer to their choice. Visit [npm/@contextual-io/cli](https://www.npmjs.com/package/@contextual-io/cli) for the latest version and release notes.
 
 ## Runtime Checks
 
