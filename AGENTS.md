@@ -38,7 +38,7 @@ Editing flows is the primary development activity on this platform. The mechanis
 
 **Check for a live server before assuming one is needed:** if `mcp__ctxl-flow-editor__*` tools appear in the available tool list, the server is already running — call `info` and `list_sessions` to orient, do not ask the user to start it again.
 
-Use the `ctxl:solai-flow-editor` skill or `flow-editor` agent for all live canvas work.
+**Do not use `mcp__ctxl-flow-editor__*` tools directly without first invoking `ctxl:solai-flow-editor`.** Tool availability does not mean operational guidance is loaded. The skill loads node-reference.md and all behavioral rules for the session — skipping it leads to incorrect tool sequences, wrong node types, and silent failures. Invoke the skill first, even mid-session, even when the MCP tools are already in context.
 
 ---
 
