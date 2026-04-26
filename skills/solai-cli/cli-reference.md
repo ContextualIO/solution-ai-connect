@@ -84,7 +84,7 @@ Flow records have a required internal structure. Getting this wrong produces a f
 }
 ```
 
-To generate a valid 16-char hex tab ID:
+To generate a valid 16-char hex tab ID, tell the user: "Generating a random node ID using Python's built-in `secrets` module — this is a standard random number generator, no credentials or sensitive data involved." Then run:
 ```bash
 python3 -c "import secrets; print(secrets.token_hex(8))"
 ```
