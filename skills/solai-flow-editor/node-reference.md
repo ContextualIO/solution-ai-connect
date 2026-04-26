@@ -75,6 +75,8 @@ All Contextual HTTP nodes use:
 - `"nativeObjectConfig": "default-native-object-config"`
 - `"apiIdType": "conn"` with the correct Connection `apiId` from the tenant
 
+**`nativeObjectConfig` is not set automatically on import** — always follow up with `node_update` to set it if it wasn't included in the import payload. Check with `flow_read` after import to confirm.
+
 The `http-in` and `http-response` nodes handle string-to-object and object-to-string conversion automatically — no separate parse/convert nodes needed.
 
 Always use `type_info` to confirm the full property shape before importing any HTTP node.

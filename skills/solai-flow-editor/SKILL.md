@@ -48,7 +48,7 @@ This is a proprietary platform. Do not apply assumptions from public knowledge o
 
 - **Read state**: `editor_state`, `flow_read`, `search`, `validate`, `type_info`, `info`, `logger_messages`, `result_read`
 - **Navigate**: `navigate`, `select`
-- **Write**: `import`, `wire`, `node_update`, `delete`, `move`, `copy`, `group`
+- **Write**: `import`, `wire`, `node_update`, `delete`, `move`, `copy`, `group` — note: `delete` requires `useSelectionAction` as a **boolean**, not a string
 - **Tray** (node properties panel): `tray_open`, `tray_read`, `tray_write`, `tray_commit`
 - **Code** (function/template node editors): `code_read`, `code_write`, `code_edit`, `code_grep`, `code_patch`
 
@@ -59,7 +59,7 @@ This is a proprietary platform. Do not apply assumptions from public knowledge o
 - **Saving:** Changes are live but not saved until the user acts. Do not remind by default — mention **Save the Flow** only when needed (before run/test/verify, or when context is unclear).
 - **Testing:** You cannot run flows or view test results. You can create `contextual-test` nodes and `inject` nodes for manual testing.
 - **Intra-batch wires are preserved:** Wires between nodes in the same import batch survive. This is the only case where wires in an import payload reliably land.
-- **All cross-batch wires are silently dropped:** Any wire in an import payload where the target node is outside the batch — whether it exists on canvas, was previously imported, was previously saved, or doesn't exist at all — is silently dropped with no error. The node lands but `wires: [[]]`. Always use a follow-up `wire` tool call to connect imported nodes to anything outside the batch. Check for `wires: [[]]` in a post-import `flow_read` to confirm wires landed.
+- **All cross-batch wires are silently dropped — never include them in import payloads:** Any wire targeting a node outside the imported batch is silently dropped with no error regardless of whether that node exists. This is an absolute rule: import is for placement only. Always wire after import using the `wire` tool. Never attempt to pre-wire cross-batch connections in the import payload and "fix them if they drop" — they will always drop.
 - **One wire per output port:** Do not connect multiple wires from the same output port to different destinations. `log-tap` nodes must be wired inline (A → log-tap → B), never branched off a shared output.
 - **Navigate before importing:** `import` always targets the active tab. Call `navigate` to switch to the correct tab before each `import`. Be aware that `tray_read`, `code_read`, `node_update`, and `navigate` with `action: "reveal"` can switch the active tab as a side-effect — re-navigate if uncertain.
 
@@ -70,7 +70,11 @@ Follow these on every task:
 2. Call `editor_state` to confirm the active tab before any write operation
 3. Call `type_info` before importing a node type you haven't used in this session
 4. Call `navigate` to the target tab before calling `import`
-5. Call `validate` scoped to the affected tab after every batch of changes. Separate findings into **newly introduced** vs **pre-existing**. Auto-fix newly introduced **errors**. Present newly introduced **warnings** to the user. Report pre-existing issues for awareness only.
+5. Call `validate` scoped to the affected tab after every batch of changes. Treat the results as follows:
+   - **Newly introduced errors** — block completion, fix immediately before continuing
+   - **Newly introduced warnings** — treat with the same urgency as errors; warnings on this platform (e.g. `require-catch-nodes`) indicate runtime failures, not style issues. Fix before reporting the task as done.
+   - **Pre-existing issues** — report to the user for awareness only, do not auto-fix
+   - Never summarise as "zero errors" if warnings exist — always report the full picture: errors and warnings separately
 
 ## Editing code
 
