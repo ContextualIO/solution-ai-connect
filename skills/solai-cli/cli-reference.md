@@ -133,7 +133,7 @@ Replace `http-in`/`http-response` with `contextual-start`/`contextual-end`. The 
 
 **Scheduled flow** — same as event but entry node is `inject` with a cron schedule instead of `contextual-start`.
 
-After creating, tell the user to open the flow in their browser so refinements can be made interactively through the Flow Editor rather than via CLI string manipulation.
+After creating, tell the user to open the flow in their browser at `https://<flow-id>.flow.<tenant-id>.my.contextual.io/.editor` so refinements can be made interactively through the Flow Editor rather than via CLI string manipulation.
 
 ### Writing complex flow content
 

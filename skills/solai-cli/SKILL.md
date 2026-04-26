@@ -288,7 +288,7 @@ Always write the flow JSON to a file using a Python heredoc (`<< 'PYEOF'`) — n
 
 **Step 3 — Hand off to the flow editor:**
 
-After creating the flow, tell the user: "The flow skeleton is created with error handling in place — open it in your browser and I can build out the logic interactively through the Flow Editor, which is much cleaner for complex node content."
+After creating the flow, tell the user: "The flow skeleton is created with error handling in place — open it in your browser at `https://<flow-id>.flow.<tenant-id>.my.contextual.io/.editor` and I can build out the logic interactively through the Flow Editor, which is much cleaner for complex node content."
 
 ---
 
