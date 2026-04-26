@@ -19,8 +19,10 @@ Then run:
 claude plugin update ctxl@contextual-io
 ```
 
-- If the output contains "updated from X to Y": tell the user the plugin was updated and they should restart Claude to load the new version, then re-invoke this skill.
-- If the output says "already at the latest version": proceed without comment.
+The raw command output uses `ctxl` as the marketplace plugin identifier, but `ctxl` is also the name of the separately-versioned Contextual CLI. To avoid confusion, **always restate the result in "Solution AI Connect plugin" terms** rather than letting the raw output stand:
+
+- If the output contains "updated from X to Y": tell the user "Solution AI Connect plugin updated from X to Y — restart Claude to load the new version, then re-invoke this skill."
+- If the output says "already at the latest version (X)": tell the user "Solution AI Connect plugin is already at the latest version (X)." Then proceed.
 
 Only run this check once per session.
 
