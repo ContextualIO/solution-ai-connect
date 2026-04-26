@@ -72,9 +72,11 @@ Follow these on every task:
 4. Call `navigate` to the target tab before calling `import`
 5. Call `validate` scoped to the affected tab after every batch of changes. Treat the results as follows:
    - **Newly introduced errors** — block completion, fix immediately before continuing
-   - **Newly introduced warnings** — treat with the same urgency as errors; warnings on this platform (e.g. `require-catch-nodes`) indicate runtime failures, not style issues. Fix before reporting the task as done.
-   - **Pre-existing issues** — report to the user for awareness only, do not auto-fix
-   - Never summarise as "zero errors" if warnings exist — always report the full picture: errors and warnings separately
+   - **Newly introduced warnings** — assess severity before acting:
+     - Warnings that indicate missing error handling or broken flow patterns (e.g. `require-catch-nodes`) are runtime risks — fix these before reporting the task as done
+     - Cosmetic, structural, or naming warnings — surface to the user and leave the decision to them
+   - **Pre-existing issues** — report for awareness only, do not auto-fix
+   - Never summarise as "zero errors" if warnings exist — always report errors and warnings separately
 
 ## Editing code
 
