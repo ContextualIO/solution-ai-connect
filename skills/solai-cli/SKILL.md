@@ -159,13 +159,15 @@ Common reads:
 Reserved admin component examples:
 
 ```bash
-ctxl types get native-object:flow --config-id <config-id>
 ctxl records list --type flow --config-id <config-id>
-ctxl types get native-object:agent --config-id <config-id>
 ctxl records list --type agent --config-id <config-id>
-ctxl types get native-object:ai-route --config-id <config-id>
 ctxl records list --type ai-route --config-id <config-id>
+ctxl records list --type api-configuration --config-id <config-id>
+ctxl records list --type jwks-configuration --config-id <config-id>
+ctxl records list --type authorization-code-app --config-id <config-id>
 ```
+
+**When answering general questions about a tenant** ("what's in this tenant?", "what does this tenant do?", "what solutions are built here?"), fetch all six reserved component types in parallel alongside `ctxl types list` for custom object types. Empty results are fine — they complete the picture. Do not skip any component type because it seems unlikely to have content.
 
 Tenant-defined data object example:
 
