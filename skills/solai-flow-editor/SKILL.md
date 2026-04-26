@@ -68,7 +68,7 @@ This is a proprietary platform. Do not apply assumptions from public knowledge o
 Follow these on every task:
 1. Call `list_sessions` if the target flow ID is unknown
 2. Call `editor_state` to confirm the active tab before any write operation
-3. Call `type_info` before importing a node type you haven't used in this session
+3. Call `type_info` before importing a node type you haven't used in this session. Any field showing `defaultValue: "[Circular]"` in the `propertyMap` is an editable-list array — always set it to `[]` explicitly in the import payload. This is reliable across all node types; `[Circular]` is a JSON serialisation artifact, not a missing value.
 4. Call `navigate` to the target tab before calling `import`
 5. Call `validate` scoped to the affected tab after every batch of changes. Treat the results as follows:
    - **Newly introduced errors** — block completion, fix immediately before continuing
@@ -106,7 +106,7 @@ Changed lines are highlighted in the editor. Do not call `tray_commit` after cod
 
 | Goal | Tool | Notes |
 |------|------|-------|
-| Full live field model with values | `tray_read` | Auto-opens tray. Resolves TypedInput state, editor values, tab associations. |
+| Full live field model with values | `tray_open` → `tray_read` | `tray_open` first, then `tray_read`. Resolves TypedInput state, editor values, tab associations. |
 | Raw node data without side-effects | `flow_read` with `action: "node"` | Lightweight. No tray interaction. Missing live editor values. |
 | Code editor content | `code_read` | Paginated. Works while expanded editor is open. |
 | Node type defaults and help | `type_info` | Use before creating nodes or to understand a type's properties. |
@@ -146,7 +146,7 @@ tray_read → tray_write (one or more calls)
 
 Only call `tray_commit` when the user explicitly asks to save or commit. Otherwise leave the tray open for review.
 
-`tray_read` auto-opens the tray — use `tray_open` only when you don't need to read values first. For editable lists, prefer semantic row selectors from `tray_read(includeListItems: true)`. Treat `warningCount`/`warnings` on `tray_write` responses as a sign to re-inspect tray state before continuing.
+`tray_read` does **not** auto-open the tray — always call `tray_open` first, then `tray_read`. For editable lists, prefer semantic row selectors from `tray_read(includeListItems: true)`. Treat `warningCount`/`warnings` on `tray_write` responses as a sign to re-inspect tray state before continuing.
 
 When reading across multiple nodes, moving from tray to tray is fine. Before switching to non-tray tools on a different node, close with `tray_commit action: "cancel"` — unless you made edits, in which case leave the tray open for review.
 
