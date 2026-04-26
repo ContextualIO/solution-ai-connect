@@ -65,7 +65,7 @@ Two helper scripts are bundled with this skill. When invoking them, tell the use
 
 ## Hard Rules
 
-- Never read `~/.config/ctxl/config.json` or any raw credential store.
+- Never read raw `ctxl` config or credential files directly — always use `ctxl` CLI commands to interact with configs and credentials.
 - Never call Contextual APIs directly with `curl`, `fetch`, custom headers, or handwritten HTTP requests.
 - Never expose or summarize bearer tokens, refresh tokens, or auth headers.
 - Do not use `ctxl config delete`, `ctxl records delete/remove/rm`, or `ctxl types delete/remove/rm`.
@@ -100,6 +100,8 @@ ctxl config use <config-id>
 ## Automatic Auth Recovery
 
 If a tenant command reports that the config is not logged in, unauthorized, expired, or otherwise needs auth:
+
+Tell the user: "Your session isn't logged in or has expired — starting browser login for `<config-id>` now."
 
 1. Start login for that same config:
 
