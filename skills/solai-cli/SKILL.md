@@ -301,6 +301,7 @@ For record patches, show the exact `ctxl records patch ...` flags before confirm
 - `log-tap` must have `outputs: 1` and a valid `level`.
 - Wire `log-tap` inline in the chain, not as a dead-end fork.
 - `flows_cred: {}` must be inside `node_red_data`, not at the top level of the flow record.
+- Tab objects in existing flows typically include `env: []` — preserve it when editing; omitting it may cause issues in the editor.
 - After edits, re-read the flow and verify the change actually landed.
 
 ## MCP Server
