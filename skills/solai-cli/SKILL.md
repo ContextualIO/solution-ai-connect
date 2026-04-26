@@ -263,6 +263,18 @@ When summarizing a flow, inspect `node_red_data.flows` and report:
 
 For flow edits:
 
+**Preferred path: Flow Editor Session via MCP tunnel.** Before editing a flow via CLI, check whether `mcp__ctxl-flow-editor__*` tools are available in the deferred tool list. If they are, a Flow Editor session is active (via the Ctxl Tool desktop app or a manually started MCP server) and you should strongly recommend using the `solai-flow-editor` skill instead. Reasons to prefer it:
+
+- Changes are staged live in the editor and visible before the flow is saved or versioned — the user can review and undo before committing
+- Node-level granularity — individual nodes can be added, wired, and updated without touching the full flow JSON
+- Safer for large or complex flows where a full-record replace risks corrupting structure
+
+Tell the user: "I can see a Flow Editor session is available — I can make these changes live in the editor so you can review them before saving. Would you like to do that, or continue via CLI?"
+
+If the tools are not available, proceed with the CLI path below and optionally note that opening the Ctxl Tool and the flow in a browser would enable the live editing experience.
+
+**CLI path (when MCP tunnel is unavailable or user prefers it):**
+
 1. Fetch the current flow to a temp file.
 2. Create the proposed edited file.
 3. Preview the diff:
