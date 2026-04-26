@@ -290,7 +290,7 @@ Always write the flow JSON to a file using a Python heredoc (`<< 'PYEOF'`) — n
 
 **Step 3 — Hand off to the flow editor:**
 
-After creating the flow, tell the user: "The flow skeleton is created with error handling in place — open it in your browser at `https://<flow-id>.flow.<tenant-id>.my.contextual.io/.editor` and I can build out the logic interactively through the Flow Editor, which is much cleaner for complex node content."
+After creating the flow, **resolve the tenant ID first** by running `ctxl config current --json`, then tell the user with the fully-resolved URL: "The flow skeleton is created with error handling in place — open it in your browser at `https://<flow-id>.flow.<resolved-tenant-id>.my.contextual.io/.editor` and I can build out the logic interactively through the Flow Editor, which is much cleaner for complex node content." Never hand the user a URL with `<tenant-id>` as a literal placeholder — fill it in.
 
 ---
 

@@ -133,7 +133,7 @@ Replace `http-in`/`http-response` with `contextual-start`/`contextual-end`. The 
 
 **Scheduled flow** — same as event but entry node is `inject` with a cron schedule instead of `contextual-start`.
 
-After creating, tell the user to open the flow in their browser at `https://<flow-id>.flow.<tenant-id>.my.contextual.io/.editor` so refinements can be made interactively through the Flow Editor rather than via CLI string manipulation.
+After creating, resolve the tenant ID via `ctxl config current --json` and tell the user to open the flow at the fully-resolved URL `https://<flow-id>.flow.<resolved-tenant-id>.my.contextual.io/.editor` so refinements can be made interactively through the Flow Editor rather than via CLI string manipulation. Never leave `<tenant-id>` as a literal placeholder for the user to fill in.
 
 ### Writing complex flow content
 

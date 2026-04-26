@@ -25,7 +25,7 @@ Read [node-reference.md](node-reference.md) now. Use it as the authoritative nod
 
 The `ctxl-flow-editor` MCP server bridges this AI session to an active browser-based Contextual Flow Editor session. Changes made through these tools are reflected live in the browser editor — you are not editing a file.
 
-A flow session only exists when the flow is open in a browser tab. `list_sessions` reflects live browser connections. If a flow is not listed, the user needs to open it in their browser before you can work on it. The correct URL to open the Flow Editor is `https://<flow-id>.flow.<tenant-id>.my.contextual.io/.editor` — without `/.editor`, HTTP-based flows will serve their root endpoint instead of opening the editor.
+A flow session only exists when the flow is open in a browser tab. `list_sessions` reflects live browser connections. If a flow is not listed, the user needs to open it in their browser before you can work on it. The correct URL to open the Flow Editor is `https://<flow-id>.flow.<tenant-id>.my.contextual.io/.editor` — without `/.editor`, HTTP-based flows will serve their root endpoint instead of opening the editor. **Always resolve the tenant ID** by running `ctxl config current --json` (via Bash) before giving the URL to the user — never hand them a URL with `<tenant-id>` as a literal placeholder.
 
 ## Terminology
 
