@@ -8,6 +8,8 @@ Node-specific configuration, rules, and patterns for the Contextual Flow Editor.
 
 `log-tap` replaces the `debug` node entirely. The `debug` node is **deprecated and non-functional** — never suggest or create debug nodes.
 
+Available levels (confirmed from live tray — `type_info` does not enumerate these): `debug`, `info`, `warn`, `error`
+
 Default configuration:
 ```json
 {
