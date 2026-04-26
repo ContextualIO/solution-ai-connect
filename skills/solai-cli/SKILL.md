@@ -51,8 +51,17 @@ If the user has a preferred package manager or install method, defer to their ch
 
 ## Supporting Files
 
-- Use `${CLAUDE_SKILL_DIR}/scripts/contextual_login.py --state-dir "${CLAUDE_PLUGIN_DATA:-${CLAUDE_SKILL_DIR}/.local}/login-jobs"` for browser login orchestration.
-- Use `${CLAUDE_SKILL_DIR}/scripts/json_diff.py` to preview replace operations before writing.
+Two helper scripts are bundled with this skill. When invoking them, tell the user what is happening before running so the path doesn't appear alarming:
+
+- **`contextual_login.py`** — orchestrates browser-based login for a config. When invoking, tell the user: "Starting browser login for `<config-id>` — a verification code will appear shortly for you to confirm in your browser."
+  ```
+  ${CLAUDE_SKILL_DIR}/scripts/contextual_login.py --state-dir "${CLAUDE_PLUGIN_DATA:-${CLAUDE_SKILL_DIR}/.local}/login-jobs"
+  ```
+
+- **`json_diff.py`** — previews the difference between the current and proposed version of a flow or record before any write is made. When invoking, tell the user: "Generating a diff so you can review what will change before anything is written."
+  ```
+  ${CLAUDE_SKILL_DIR}/scripts/json_diff.py <current-file> <proposed-file>
+  ```
 
 ## Hard Rules
 
