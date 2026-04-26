@@ -49,7 +49,7 @@ Four skills are available. Reach for them before answering platform questions fr
 | Skill | When to use |
 |---|---|
 | `ctxl:solai-knowledge` | Any question about platform behavior, node types, flow patterns, routing, Object Types, or runtime details. Ground answers in docs before responding. |
-| `ctxl:solai-cli` | Inspecting or editing a tenant from a shell-capable runtime (Claude Code, Cowork, OpenCode). Requires `ctxl` CLI installed locally. |
+| `ctxl:solai-cli` | Inspecting or editing a tenant from a shell-capable runtime (Claude Code, Cowork, OpenCode). Also the correct skill for **creating new flows** — use this, not `plan-flow`, when the user wants to actually build or create something. Requires `ctxl` CLI installed locally. |
 | `ctxl:solai-flow-editor` | Making changes to a live flow open in the browser Flow Editor. Requires `ctxl mcp serve` running in a terminal. Use after a plan is in place — plan first with the `plan-flow` agent. |
 | `ctxl:solai-data-modeler` | Designing or validating Object Type schemas — fields, relations, primaryKeys, generated properties. |
 
