@@ -34,11 +34,11 @@ Editing flows is the primary development activity on this platform. The mechanis
 
 **Connection handshake:** The first tool call targeting a flow triggers an "MCP requesting access" dialog in the Flow Editor's right sidebar. The user must click **Accept** before any tool calls succeed. Always prompt the user to watch for this.
 
-**The MCP server cannot be started by Claude.** Any process Claude launches via shell is ephemeral and dies immediately. The server must be running in the user's own terminal before flow editing can begin.
+**The MCP server cannot be started by Claude.** Any process Claude launches via shell is ephemeral and dies immediately. The server must be running in the user's own terminal (via `ctxl mcp serve`) or via the Ctxl Tool desktop app, which manages the server for the user.
 
-**Check for a live server before assuming one is needed:** if `mcp__ctxl-flow-editor__*` tools appear in the available tool list, the server is already running — call `info` and `list_sessions` to orient, do not ask the user to start it again.
+**Check for a live server before assuming one is needed:** if `mcp__ctxl-flow-editor__*` tools appear in the available tool list, the server is already running. `info` and `list_sessions` are safe read-only orientation calls and may be used to check state without invoking a skill.
 
-**Do not use `mcp__ctxl-flow-editor__*` tools directly without first invoking `ctxl:solai-flow-editor`.** Tool availability does not mean operational guidance is loaded. The skill loads node-reference.md and all behavioral rules for the session — skipping it leads to incorrect tool sequences, wrong node types, and silent failures. Invoke the skill first, even mid-session, even when the MCP tools are already in context.
+**Invoke `ctxl:solai-flow-editor` before any write or read-state operation beyond `info`/`list_sessions`.** Tool availability does not mean operational guidance is loaded. The skill loads node-reference.md and all behavioral rules for the session — skipping it leads to incorrect tool sequences, wrong node types, and silent failures. The exception is read-only orientation (`info`, `list_sessions`) used to determine session state before deciding which skill to invoke.
 
 ---
 
@@ -50,7 +50,7 @@ Four skills are available. Reach for them before answering platform questions fr
 |---|---|
 | `ctxl:solai-knowledge` | Any question about platform behavior, node types, flow patterns, routing, Object Types, or runtime details. Ground answers in docs before responding. |
 | `ctxl:solai-cli` | Inspecting or editing a tenant from a shell-capable runtime (Claude Code, Cowork, OpenCode). Also the correct skill for **creating new flows** — use this, not `plan-flow`, when the user wants to actually build or create something. Requires `ctxl` CLI installed locally. |
-| `ctxl:solai-flow-editor` | Making changes to a live flow open in the browser Flow Editor. Requires `ctxl mcp serve` running in a terminal. Use after a plan is in place — plan first with the `plan-flow` agent. |
+| `ctxl:solai-flow-editor` | Making changes to a live flow open in the browser Flow Editor. Requires the MCP server to be running — either via `ctxl mcp serve` in a terminal or via the Ctxl Tool desktop app, which manages the server for the user. For complex multi-step work, planning with `plan-flow` first is helpful but not required. |
 | `ctxl:solai-data-modeler` | Designing or validating Object Type schemas — fields, relations, primaryKeys, generated properties. |
 
 **Universal rule:** If a platform question can't be answered from memory with confidence, invoke `ctxl:solai-knowledge` to ground the answer in docs first.
@@ -64,7 +64,7 @@ Six subagents cover the full delivery lifecycle. Use them in sequence or in para
 | Agent | Role |
 |---|---|
 | `solution-architect` | Translate requirements into a full platform design — connections, object types, flow topology, auth, UI scope, scale |
-| `plan-flow` | Design node-level flow changes — tab structure, node selection, wiring, error handling, patch sequencing |
+| `plan-flow` | Design-phase planning only — produces a plan for tab structure, node selection, wiring, error handling, patch sequencing. Does not create flows or touch the editor. To actually create a flow, use `ctxl:solai-cli` instead. |
 | `data-modeler` | Design and validate Object Type schemas |
 | `flow-editor` | Implement planned flow changes in the live Flow Editor via the `ctxl-flow-editor` MCP server |
 | `docs-reader` | Look up Contextual platform documentation — callable by other agents when behavior is uncertain |
@@ -94,7 +94,7 @@ Drop a `.claude/agents/<name>.md` in the project to replace a plugin agent with 
 ## Prerequisites
 
 - **`ctxl:solai-cli` and `flow-editor`** require the `ctxl` CLI: `npm install -g @contextual-io/cli`
-- **`ctxl:solai-flow-editor` and `flow-editor`** require `ctxl mcp serve --config-id <config-id>` running in a persistent terminal before use
+- **`ctxl:solai-flow-editor` and `flow-editor`** require the MCP server running before use — either `ctxl mcp serve --config-id <config-id>` in a persistent terminal, or via the Ctxl Tool desktop app
 - **`ctxl:solai-knowledge`** uses a remote MCP connector — no local setup needed
 
 ---
