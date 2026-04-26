@@ -57,7 +57,7 @@ This is a proprietary platform. Do not apply assumptions from public knowledge o
 - **`import` is placement only — never include cross-batch wires:** Any wire targeting a node outside the imported batch is silently dropped with no error, always, regardless of whether the target exists. Do not include cross-batch wires in import payloads and "fix them if they drop" — they will always drop. Always wire after import using the `wire` tool. Intra-batch wires (both ends in the same import call) are the only wires that survive import.
 - **Navigation side-effects:** Many tools (`import`, `node_update`, `navigate`, `code_edit`, etc.) navigate the user's viewport, switch tabs, and change selection in real-time. Be deliberate — don't jump the user around unnecessarily.
 - **Concurrent editing:** The user may be editing at the same time. Warn before editing code in a node they may be actively working in.
-- **Saving:** Changes are live but not saved until the user acts. Do not remind by default — mention **Save the Flow** only when needed (before run/test/verify, or when context is unclear).
+- **Saving:** Changes are live but not saved until the user acts. Do not remind by default — mention **Save the Flow** only when needed (before run/test/verify, or when context is unclear). The button in the Flow Editor UI is labelled **Save** — never use the word "Deploy" to refer to this action. Deploying means binding a flow to an Agent for production execution, which is a separate step.
 - **Testing:** You cannot run flows or view test results. You can create `contextual-test` nodes and `inject` nodes for manual testing.
 - **One wire per output port:** Do not connect multiple wires from the same output port to different destinations. `log-tap` nodes must be wired inline (A → log-tap → B), never branched off a shared output.
 - **Navigate before importing:** `import` always targets the active tab. Call `navigate` to switch to the correct tab before each `import`. Be aware that `tray_read`, `code_read`, `node_update`, and `navigate` with `action: "reveal"` can switch the active tab as a side-effect — re-navigate if uncertain.
@@ -67,8 +67,8 @@ This is a proprietary platform. Do not apply assumptions from public knowledge o
 Follow these on every task:
 1. Call `list_sessions` if the target flow ID is unknown
 2. Call `editor_state` to confirm the active tab before any write operation
-3. Call `type_info` before importing a node type you haven't used in this session. Any field showing `defaultValue: "[Circular]"` in the `propertyMap` is an editable-list array — always set it to `[]` explicitly in the import payload. This is reliable across all node types; `[Circular]` is a JSON serialisation artifact, not a missing value.
-4. Generate all node IDs before calling `import` — never attempt to import a node without a pre-generated hex ID. Use `python3 -c "import secrets; print(secrets.token_hex(8))"` via Bash. An import without an ID will fail immediately.
+3. **Generate all node IDs before doing anything else that leads to `import`.** Use `python3 -c "import secrets; print(secrets.token_hex(8))"` via Bash — one call per node needed. An import attempted without a pre-generated ID fails immediately. Do this before `type_info`, before building the payload, before navigate.
+4. Call `type_info` before importing a node type you haven't used in this session. Any field showing `defaultValue: "[Circular]"` in the `propertyMap` is an editable-list array — always set it to `[]` explicitly in the import payload. This is reliable across all node types; `[Circular]` is a JSON serialisation artifact, not a missing value.
 5. Call `navigate` to the target tab before calling `import`
 6. Call `validate` scoped to the affected tab after every batch of changes. Treat the results as follows:
    - **Newly introduced errors** — block completion, fix immediately before continuing
