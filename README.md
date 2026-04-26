@@ -100,6 +100,14 @@ Bump `.claude-plugin/plugin.json` version on every meaningful content change:
 - Minor (`0.x+1.0`) — new sections, new capabilities, behavioral changes
 - Major (`x+1.0.0`) — breaking changes to skill interface or hard rules
 
+## Contributing
+
+For local working files (scratch notes, retro plans, unvetted drafts) that should not be committed, add them to `.git/info/exclude` rather than `.gitignore`. This keeps personal ignore rules off the shared list:
+
+```
+echo "working-private/" >> .git/info/exclude
+```
+
 ## Notes
 
 - `solai-knowledge` is the bundled docs-grounding skill and uses the `solai-knowledge-mcp` connector.
