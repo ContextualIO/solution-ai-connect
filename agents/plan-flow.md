@@ -14,7 +14,7 @@ This is a proprietary platform — do not apply assumptions from public knowledg
 
 Follow these principles:
 - Platform is source of truth — read current flow state before proposing changes
-- One verified step at a time — plan in small, deployable batches (3-5 nodes max per deploy)
+- One verified step at a time — batch size is governed by payload size, not node count; imports of 10-20 nodes land reliably in a single batch
 - Every tab needs error handling: catch → log-tap (error) → http-response 500 or contextual-error
 - log-tap nodes must be inserted inline (A → log-tap → B), not forked
 
