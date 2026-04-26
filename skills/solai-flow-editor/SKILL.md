@@ -1,11 +1,24 @@
 ---
 name: solai-flow-editor
-description: Edit live Contextual flows in the Flow Editor — read state, import nodes, wire connections, update properties, edit code, and validate. Use AFTER a plan is in place. Do NOT plan architecture here — use plan-flow first.
+description: Edit live Contextual flows in the Flow Editor — add, change, move, wire, delete, rename, configure, group, copy, or validate nodes / wires / properties / code in a flow open in the user's browser. Required before any `mcp__ctxl-flow-editor__*` call other than `info`/`list_sessions` orientation. Use AFTER planning; do NOT plan architecture here — use plan-flow first.
 ---
 
 # SolAI Flow Editor
 
 Use this skill to interact with live Contextual flows through the `ctxl-flow-editor` MCP server.
+
+## When to invoke
+
+Invoke this skill **before** any `mcp__ctxl-flow-editor__*` tool call that inspects or modifies a flow. The only exempt orientation tools are `info` and `list_sessions` (used to answer "is the server up / which flows are open?"). Everything else is gated, including reads.
+
+**Trigger phrases** — load the skill as soon as user intent matches any of these against a live flow:
+- **Edit:** add, change, update, move, wire, connect, delete, rename, configure, set, fix, group, copy a node / wire / property / code / tab
+- **Inspect:** look at, check, read, validate, search flow contents
+- **Test:** create `inject` or `contextual-test` nodes, set up test data
+
+The trigger is **intent to work on a flow**, not the literal word "edit". A request like *"add some comment nodes to my hello world flow"* qualifies — load the skill before the first `editor_state` / `flow_read` / `type_info` / `import` call.
+
+**Why this matters:** loading this skill brings node-reference.md, sequencing rules (especially node ID pre-generation — see Sequencing rules step 3), and the silent-failure catalogue into context. Skipping it produces failures the MCP server does not surface clearly: missing pre-generated IDs, wrong node types, dropped cross-batch wires, broken `tray_open`→`tray_read` sequences, malformed `editable-list` defaults.
 
 ## Setup Check
 

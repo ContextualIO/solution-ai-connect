@@ -23,7 +23,30 @@ Do not apply assumptions from other flow-based or low-code platforms. When uncer
 
 ## Live Flow Editing — the core development motion
 
-Editing flows is the primary development activity on this platform. The mechanism is a live tunnel, not file editing:
+Editing flows is the primary development activity on this platform. It happens through a live MCP tunnel into the user's browser-open Flow Editor (mechanics below).
+
+### Skill gate — invoke `ctxl:solai-flow-editor` before touching a flow
+
+**Trigger:** any user request that implies inspecting or modifying a live flow — *add, edit, change, update, move, wire, connect, delete, rename, configure, set, fix, group, copy, validate, look at, check, read* a node / wire / property / code / tab. The trigger is the **intent to work on a flow**, regardless of whether the user names the skill or the word "edit" appears.
+
+**Exempt — orientation only, no skill needed:**
+- `info` — server metadata
+- `list_sessions` — which flows are open in the browser
+
+These exist so Claude can answer "is the server up / which flows are open?" without loading the skill. Nothing else is exempt.
+
+**Not exempt — skill must be invoked first:**
+- Reads into flow contents: `editor_state`, `flow_read`, `tray_open`, `tray_read`, `result_read`, `logger_messages`, `search`, `type_info`, `validate`, `navigate`
+- All writes: `import`, `wire`, `node_update`, `code_read`, `code_write`, `code_edit`, `code_grep`, `code_patch`, `tray_write`, `tray_commit`, `move`, `copy`, `delete`, `group`, `select`
+
+Tool availability ≠ guidance loaded. Skipping the skill produces silent failures the MCP server does not catch: missing pre-generated node IDs, wrong node types, dropped cross-batch wires, broken `tray_open`→`tray_read` sequences, malformed `editable-list` defaults. Errors surface obscurely or partial changes apply.
+
+**Sequence when a flow-editing intent is detected:**
+1. (Optional) `list_sessions` to confirm a session exists for the target flow.
+2. **Invoke `ctxl:solai-flow-editor`.** Do this before the next tool call, even if you already know the flow is open.
+3. Proceed with reads/writes per the skill's guidance.
+
+### How the tunnel works
 
 1. The user runs `ctxl mcp serve --config-id <config-id>` in a persistent terminal. This starts a local MCP server at `http://localhost:5051/`.
 2. The user opens a flow in their browser's Flow Editor.
@@ -36,10 +59,6 @@ Editing flows is the primary development activity on this platform. The mechanis
 
 **The MCP server cannot be started by Claude.** Any process Claude launches via shell is ephemeral and dies immediately. The server must be running in the user's own terminal (via `ctxl mcp serve`) or via the Ctxl Tool desktop app, which manages the server for the user.
 
-**Check for a live server before assuming one is needed:** if `mcp__ctxl-flow-editor__*` tools appear in the available tool list, the server is already running. `info` and `list_sessions` are safe read-only orientation calls and may be used to check state without invoking a skill.
-
-**Invoke `ctxl:solai-flow-editor` before any write or read-state operation beyond `info`/`list_sessions`.** Tool availability does not mean operational guidance is loaded. The skill loads node-reference.md and all behavioral rules for the session — skipping it leads to incorrect tool sequences, wrong node types, and silent failures. The exception is read-only orientation (`info`, `list_sessions`) used to determine session state before deciding which skill to invoke.
-
 ---
 
 ## Skills
@@ -50,7 +69,7 @@ Four skills are available. Reach for them before answering platform questions fr
 |---|---|
 | `ctxl:solai-knowledge` | Any question about platform behavior, node types, flow patterns, routing, Object Types, or runtime details. Ground answers in docs before responding. |
 | `ctxl:solai-cli` | Inspecting or editing a tenant from a shell-capable runtime (Claude Code, Cowork, OpenCode). Also the correct skill for **creating new flows** — use this, not `plan-flow`, when the user wants to actually build or create something. Requires `ctxl` CLI installed locally. |
-| `ctxl:solai-flow-editor` | Making changes to a live flow open in the browser Flow Editor. Requires the MCP server to be running — either via `ctxl mcp serve` in a terminal or via the Ctxl Tool desktop app, which manages the server for the user. For complex multi-step work, planning with `plan-flow` first is helpful but not required. |
+| `ctxl:solai-flow-editor` | **Required before any `mcp__ctxl-flow-editor__*` call that inspects or modifies flow contents.** Only `info` and `list_sessions` are exempt (orientation). Triggers: any imperative against a flow — add/edit/move/wire/delete/configure/validate a node, wire, property, or code. Requires the MCP server running (`ctxl mcp serve` or the Ctxl Tool desktop app). For complex multi-step work, planning with `plan-flow` first is helpful but not required. |
 | `ctxl:solai-data-modeler` | Designing or validating Object Type schemas — fields, relations, primaryKeys, generated properties. |
 
 **Universal rule:** If a platform question can't be answered from memory with confidence, invoke `ctxl:solai-knowledge` to ground the answer in docs first.
