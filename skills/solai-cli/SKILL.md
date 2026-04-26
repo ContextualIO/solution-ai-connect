@@ -6,9 +6,12 @@ argument-hint: "[task]"
 
 # SolAI CLI
 
-Use this skill only in environments with local shell access such as Claude Code, Claude Cowork, OpenCode, Codex, or another local coding agent.
+This skill has two layers:
 
-If shell access is unavailable, stop and tell the user this skill requires a shell-capable runtime. If docs would still help, switch to `solai-knowledge`.
+- **Reference and guidance** — command patterns, schema rules, flow heuristics, type IDs, write discipline. Available in any runtime, useful for planning, understanding, and answering questions even without executing anything.
+- **Execution** — running `ctxl` commands against a live tenant. Requires local shell access (Claude Code, Claude Cowork, OpenCode, Codex, or similar).
+
+If shell access is unavailable, make clear that commands cannot be executed — but continue to use this skill's reference material to answer questions, explain concepts, or help the user plan what they would run.
 
 ## Setup Check
 
