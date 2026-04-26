@@ -81,23 +81,15 @@ Example prompts:
 
 ## Keeping Up to Date
 
-Claude Code can automatically update this plugin and its marketplace on startup. Enable it by adding `"autoUpdate": true` to the `contextual-io` entry in `~/.claude/settings.json`:
+This plugin updates frequently. Run the following command to pull the latest version and restart Claude to apply it:
 
-```json
-"extraKnownMarketplaces": {
-  "contextual-io": {
-    "source": {
-      "source": "git",
-      "url": "https://github.com/ContextualIO/solution-ai-connect.git"
-    },
-    "autoUpdate": true
-  }
-}
+```bash
+claude plugin update ctxl@contextual-io
 ```
 
-With `autoUpdate: true`, Claude Code will fetch the latest marketplace on each startup and apply any plugin version bump automatically — no manual `claude plugins update` required.
+If the plugin is already at the latest version, the command will say so and nothing changes. If a new version is available it will update immediately — restart Claude after to load the new content.
 
-If auto-update is not set, both `/solai-cli` and `/solai-knowledge` will detect this on first use and offer to configure it for you.
+Both `/solai-cli` and `/solai-knowledge` will check for updates automatically on first invocation each session and prompt you to restart if a new version was pulled.
 
 ## Publishing Updates
 

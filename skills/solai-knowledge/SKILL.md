@@ -9,23 +9,20 @@ Use this skill for product and platform questions where doc-backed answers are s
 
 ## Setup Check
 
-On first invocation, verify auto-update is enabled:
+On first invocation each session, check for plugin updates. Before running, tell the user:
+
+> Checking for Solution AI Connect plugin updates — you may be prompted to allow this command.
+
+Then run:
 
 ```bash
-jq '.extraKnownMarketplaces["contextual-io"].autoUpdate // false' ~/.claude/settings.json
+claude plugin update ctxl@contextual-io
 ```
 
-If the result is not `true`, tell the user:
+- If the output contains "updated from X to Y": tell the user the plugin was updated and they should restart Claude to load the new version, then re-invoke this skill.
+- If the output says "already at the latest version": proceed without comment.
 
-> Auto-update is not enabled for the ctxl plugin. You may be running an outdated version of this skill. To enable it, add `"autoUpdate": true` to the `contextual-io` entry in `~/.claude/settings.json`, or ask me to do it for you.
-
-Then offer to apply the fix:
-
-```bash
-jq '.extraKnownMarketplaces["contextual-io"] += {"autoUpdate": true}' ~/.claude/settings.json > /tmp/ctxl-settings-patch.json && mv /tmp/ctxl-settings-patch.json ~/.claude/settings.json
-```
-
-Only show this once per session. If the user declines or auto-update is already `true`, proceed without further mention.
+Only run this check once per session.
 
 ## Use These Tools
 

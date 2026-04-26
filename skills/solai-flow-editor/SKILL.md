@@ -57,6 +57,7 @@ This is a proprietary platform. Do not apply assumptions from public knowledge o
 - **Saving:** Changes are live but not saved until the user acts. Do not remind by default — mention **Save the Flow** only when needed (before run/test/verify, or when context is unclear).
 - **Testing:** You cannot run flows or view test results. You can create `contextual-test` nodes and `inject` nodes for manual testing.
 - **Imported nodes start detached:** Internal wires among an imported batch are preserved, but no connections to existing canvas nodes are made. Use `wire` after importing to connect to existing nodes.
+- **Cross-batch wires are silently dropped:** Wires referencing node IDs outside the imported batch are silently dropped at import time — always follow up with explicit `wire` calls to connect the batch to existing nodes. Check for `wires: [[]]` in the post-import `flow_read` as a sign a cross-batch wire was lost.
 - **One wire per output port:** Do not connect multiple wires from the same output port to different destinations. `log-tap` nodes must be wired inline (A → log-tap → B), never branched off a shared output.
 - **Navigate before importing:** `import` always targets the active tab. Call `navigate` to switch to the correct tab before each `import`. Be aware that `tray_read`, `code_read`, `node_update`, and `navigate` with `action: "reveal"` can switch the active tab as a side-effect — re-navigate if uncertain.
 
@@ -112,8 +113,14 @@ Changed lines are highlighted in the editor. Do not call `tray_commit` after cod
 
 ## Deployment discipline
 
-- Import in batches of 3–5 nodes max — larger imports cause silent node loss
-- After each import batch, call `flow_read` on the tab and confirm node count matches expectation before continuing
+Batch size is governed by **payload size**, not node count. In testing with hefty function nodes (20+ lines of real code each), single imports of 10, 15, and 20 nodes all landed cleanly. The failure mode observed at the extreme was an MCP connection **timeout** — not silent node loss. The practical limit appears to be the MCP round-trip timeout (~30s), not a node count ceiling.
+
+Guidelines:
+
+- Comment/stub nodes: no meaningful limit observed up to 20
+- Function nodes with substantial code: up to 20 landed reliably in a single import
+- If a timeout occurs: split the batch and retry — no partial writes were observed; it's all-or-nothing
+- After each import, always verify `nodeCount` in the response matches expectation before continuing
 - Never work from memory — always read current state before acting
 - Every tab needs error handling: catch → log-tap (error) → http-response 500 or contextual-error
 
@@ -277,6 +284,32 @@ Headers include: `x-kind: action`, `x-subkind: <action-id>`, `x-type-id`.
 Payload shape: `{ "instance": { ...record }, "params": {} }`.
 
 When building inject test payloads for a specific Object Type, use `type_info` or ask the user for the actual `x-type-id` and record field shape.
+
+### HTTP route limitation
+
+`inject` nodes cannot meaningfully drive `http-response` terminals. The `http-response` node requires a real Express `res` object (a live TCP connection from `http-in`) — there is no JSON-serializable substitute. Injecting a stub `res: {}` causes `TypeError: Cannot read properties of undefined (reading 'status')` at the terminal, which cascades into the catch handler and produces a "Message exceeded maximum number of catches" loop.
+
+For HTTP route testing in-editor, use `contextual-test` nodes instead (see below), with `output` pointed at the last meaningful node before the `http-response` terminal (e.g. the shape-response `function` node). The `contextual-test` node suppresses `msg.res` cleanly, avoiding the crash entirely.
+
+---
+
+## flow-test contextual-test node
+
+Use for structured in-editor testing of business logic.
+
+Each test case defines:
+
+- `label` — display name for the case
+- `message` — JSON input `msg` object (typed input, JSON mode)
+- `expected` — JSON object to assert against the output (partial match)
+- `output` — node ID to monitor; the test runner watches what arrives at that node
+- `timeout` — ms before the case fails (default: `5000`)
+
+The node must be wired into the flow as an entry point — it is not self-contained.
+
+**Key pattern for HTTP routes:** point `output` at the last `function` node before `http-response` terminals. This lets you assert on `statusCode` and payload without hitting the `res.status()` crash that occurs with `inject` nodes.
+
+Cases can be added programmatically via `tray_write` with `action: "add_list_items"` on `fieldId: "cases"` once the tray is open.
 
 ---
 

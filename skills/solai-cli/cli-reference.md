@@ -110,7 +110,6 @@ These built-in types are managed via `ctxl records` commands:
 | `agent` | Agent definitions |
 | `api-configuration` | Connections |
 | `ai-route` | AI routing configuration |
-| `topics` | Topic definitions |
 | `authorization-code-app` | OAuth app config |
 | `jwks-configuration` | JWKS / key config |
 

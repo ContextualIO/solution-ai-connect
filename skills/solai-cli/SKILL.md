@@ -12,23 +12,20 @@ If shell access is unavailable, stop and tell the user this skill requires a she
 
 ## Setup Check
 
-On first invocation, verify auto-update is enabled:
+On first invocation each session, check for plugin updates. Before running, tell the user:
+
+> Checking for Solution AI Connect plugin updates — you may be prompted to allow this command.
+
+Then run:
 
 ```bash
-jq '.extraKnownMarketplaces["contextual-io"].autoUpdate // false' ~/.claude/settings.json
+claude plugin update ctxl@contextual-io
 ```
 
-If the result is not `true`, tell the user:
+- If the output contains "updated from X to Y": tell the user the plugin was updated and they should restart Claude to load the new version, then re-invoke this skill.
+- If the output says "already at the latest version": proceed without comment.
 
-> Auto-update is not enabled for the ctxl plugin. You may be running an outdated version of this skill. To enable it, add `"autoUpdate": true` to the `contextual-io` entry in `~/.claude/settings.json`, or ask me to do it for you.
-
-Then offer to apply the fix:
-
-```bash
-jq '.extraKnownMarketplaces["contextual-io"] += {"autoUpdate": true}' ~/.claude/settings.json > /tmp/ctxl-settings-patch.json && mv /tmp/ctxl-settings-patch.json ~/.claude/settings.json
-```
-
-Only show this once per session. If the user declines or auto-update is already `true`, proceed without further mention.
+Only run this check once per session.
 
 ## Installation & Setup
 
@@ -45,10 +42,10 @@ Visit [npm/@contextual-io/cli](https://www.npmjs.com/package/@contextual-io/cli)
 1. Confirm the environment can run shell commands.
 2. Run `command -v ctxl && ctxl --version`.
 3. If `ctxl` is missing, tell the user it must already be installed locally before this skill can run.
+4. Read [cli-reference.md](cli-reference.md) now. Use it as the authoritative command reference for the rest of this session — do not construct `ctxl` commands from memory.
 
 ## Supporting Files
 
-- Use [cli-reference.md](cli-reference.md) for the near-1:1 command map.
 - Use `${CLAUDE_SKILL_DIR}/scripts/contextual_login.py --state-dir "${CLAUDE_PLUGIN_DATA:-${CLAUDE_SKILL_DIR}/.local}/login-jobs"` for browser login orchestration.
 - Use `${CLAUDE_SKILL_DIR}/scripts/json_diff.py` to preview replace operations before writing.
 
@@ -125,7 +122,6 @@ Type discovery follows two tracks:
 - reserved admin component types: do not rely on `ctxl types list` to discover these. For normal callers, type listing is effectively limited to tenant-defined custom object types. Treat this reserved set as known IDs:
   - `agent`
   - `flow`
-  - `topics`
   - `api-configuration` (known to users as "Connections")
   - `ai-route`
   - `jwks-configuration`
@@ -134,7 +130,7 @@ Type discovery follows two tracks:
 
 When inspecting a tenant, choose the track explicitly:
 
-1. If the user is asking about flows, agents, connections, AI routes, JWKS configs, authz code apps, or topics, start from the reserved component map.
+1. If the user is asking about flows, agents, connections, AI routes, JWKS configs, or authz code apps, start from the reserved component map.
 2. If the user is asking about tenant business data, schemas, records, triggers, actions, or custom objects, start with `ctxl types list`.
 3. Once you know the type ID, use `ctxl types get native-object:<type-id> --config-id <config-id>` to retrieve the full JSON schema — enums, patterns, constraints, defaults, and relations. This is the authoritative source for field shapes before any create or replace operation. Then use `ctxl records ... --type <type-id> --config-id <config-id>`.
 
