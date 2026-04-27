@@ -74,6 +74,8 @@ Four skills are available. Reach for them before answering platform questions fr
 
 **Universal rule:** Don't answer platform questions from memory. Source-of-truth precedence: (1) plugin-side reference content (`cli-reference.md`, `node-reference.md`, the relevant `SKILL.md`) — empirically-verified build-time reality, kept current via the BYOS pioneer feedback cycle; (2) `ctxl:solai-knowledge` — for platform/runtime behavior not covered in (1). For genuinely cross-cutting queries (spanning both build-time mechanics and broader platform context), run both in parallel — the answers are complementary. Plugin-first precedence is current state and may shift as `solai-knowledge` matures.
 
+**How to access plugin-side reference:** Invoke the relevant skill (`/ctxl:solai-flow-editor`, `/ctxl:solai-cli`, `/ctxl:solai-data-modeler`) — it loads the reference content (`node-reference.md`, `cli-reference.md`, the relevant `SKILL.md`) properly into context, along with sequencing rules and validation discipline. **Do not `grep`, `find`, or otherwise enumerate the plugin install directory** (`~/.claude/plugins/...`) to locate plugin reference content directly. That path is implementation detail, bypasses skill-level guidance (sequencing rules, validation patterns, hex-id pre-generation, etc.), and exposes plugin internals as if they're a normal interaction surface. Always go through the skill.
+
 ---
 
 ## Agents

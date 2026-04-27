@@ -74,6 +74,7 @@ Two helper scripts are bundled with this skill. When invoking them, tell the use
 - Before any `replace` or `patch` operation, show a diff or the exact planned patch flags and ask for explicit confirmation.
 - Once you know the target config, prefer `--config-id <config-id>` on tenant commands even if you already ran `ctxl config use`.
 - **Exhaust plugin-side reference content first.** `cli-reference.md`, `node-reference.md`, and this `SKILL.md` are kept current with empirically-verified build-time reality — canonical for CLI shapes, JSONL formats, flow record structure, node-level behavior, and sequencing rules. Use `solai-knowledge` for platform/runtime behavior not covered there. For genuinely cross-cutting queries (spanning both build-time mechanics and broader platform context), run both in parallel — the answers are complementary, not duplicative. Plugin-first precedence is current state; may shift as `solai-knowledge` matures.
+- **Do not `grep`, `find`, or otherwise enumerate the plugin install directory** (`~/.claude/plugins/...`) to locate plugin reference content directly. That path is implementation detail and bypasses skill-level guidance (sequencing rules, validation patterns, hex-id pre-generation, etc.). To access plugin-side reference, invoke the relevant skill — it loads the reference content properly into context.
 - Before starting `ctxl mcp serve`, verify the config is logged in. The server rejects expired or missing tokens at startup.
 
 ## Config Workflow
