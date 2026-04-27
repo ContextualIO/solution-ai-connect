@@ -1,6 +1,6 @@
 ---
 name: solai-flow-editor
-description: Edit live Contextual flows in the Flow Editor — add, change, move, wire, delete, rename, configure, group, copy, or validate nodes / wires / properties / code in a flow open in the user's browser. Required before any `mcp__ctxl-flow-editor__*` call other than `info`/`list_sessions` orientation. Use AFTER planning; do NOT plan architecture here — use plan-flow first.
+description: Edit live Contextual flows in the Flow Editor — add, change, move, wire, delete, rename, configure, group, copy, or validate nodes / wires / properties / code in a flow open in the user's browser. Also the source-of-truth for node-level behavior, configuration, and authoring patterns — function-node logging (`await logger.*`), loop wiring, Native Object node TypedInput patterns, `http-response` status precedence, etc. (see `node-reference.md`). Required before any `mcp__ctxl-flow-editor__*` call other than `info`/`list_sessions` orientation. Use AFTER planning; do NOT plan architecture here — use plan-flow first.
 ---
 
 # SolAI Flow Editor
@@ -55,7 +55,13 @@ Use these terms consistently. Never use internal engine terminology.
 
 ## Platform framing
 
-This is a proprietary platform. Do not apply assumptions from public knowledge of other flow-based tools. When uncertain about node behaviour or platform conventions: if a live session is active, use `type_info` to retrieve the node definition and documentation directly from the connected editor — that is the authoritative source. Only defer to the `solai-knowledge` skill when no live session is available.
+This is a proprietary platform. Do not apply assumptions from public knowledge of other flow-based tools. Source-of-truth precedence when uncertain about node behaviour or platform conventions:
+
+1. **`type_info`** (if a live session is active) — the connected editor's authoritative definition for the specific node type
+2. **`node-reference.md` and this `SKILL.md`** — kept current with empirically-verified build-time reality via the BYOS pioneer feedback cycle; canonical for node-level behavior, authoring patterns, and sequencing rules
+3. **`solai-knowledge`** — for platform/runtime behavior not in (1) or (2)
+
+For genuinely cross-cutting queries, run multiple sources in parallel — the answers are complementary. Precedence may shift as `solai-knowledge` matures.
 
 ## Available tools (by category)
 

@@ -73,7 +73,7 @@ Two helper scripts are bundled with this skill. When invoking them, tell the use
 - Do not use `ctxl config delete`, `ctxl records delete/remove/rm`, or `ctxl types delete/remove/rm`.
 - Before any `replace` or `patch` operation, show a diff or the exact planned patch flags and ask for explicit confirmation.
 - Once you know the target config, prefer `--config-id <config-id>` on tenant commands even if you already ran `ctxl config use`.
-- Use `solai-knowledge` before making detailed platform claims about flows, nodes, routing, runtime behavior, payload shapes, or implementation patterns.
+- **Exhaust plugin-side reference content first.** `cli-reference.md`, `node-reference.md`, and this `SKILL.md` are kept current with empirically-verified build-time reality — canonical for CLI shapes, JSONL formats, flow record structure, node-level behavior, and sequencing rules. Use `solai-knowledge` for platform/runtime behavior not covered there. For genuinely cross-cutting queries (spanning both build-time mechanics and broader platform context), run both in parallel — the answers are complementary, not duplicative. Plugin-first precedence is current state; may shift as `solai-knowledge` matures.
 - Before starting `ctxl mcp serve`, verify the config is logged in. The server rejects expired or missing tokens at startup.
 
 ## Config Workflow

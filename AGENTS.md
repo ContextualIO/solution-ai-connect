@@ -72,7 +72,7 @@ Four skills are available. Reach for them before answering platform questions fr
 | `ctxl:solai-flow-editor` | **Required before any `mcp__ctxl-flow-editor__*` call that inspects or modifies flow contents.** Only `info` and `list_sessions` are exempt (orientation). Triggers: any imperative against a flow — add/edit/move/wire/delete/configure/validate a node, wire, property, or code. Requires the MCP server running (`ctxl mcp serve` or the Ctxl Tool desktop app). For complex multi-step work, planning with `plan-flow` first is helpful but not required. |
 | `ctxl:solai-data-modeler` | Designing or validating Object Type schemas — fields, relations, primaryKeys, generated properties. |
 
-**Universal rule:** If a platform question can't be answered from memory with confidence, invoke `ctxl:solai-knowledge` to ground the answer in docs first.
+**Universal rule:** Don't answer platform questions from memory. Source-of-truth precedence: (1) plugin-side reference content (`cli-reference.md`, `node-reference.md`, the relevant `SKILL.md`) — empirically-verified build-time reality, kept current via the BYOS pioneer feedback cycle; (2) `ctxl:solai-knowledge` — for platform/runtime behavior not covered in (1). For genuinely cross-cutting queries (spanning both build-time mechanics and broader platform context), run both in parallel — the answers are complementary. Plugin-first precedence is current state and may shift as `solai-knowledge` matures.
 
 ---
 
