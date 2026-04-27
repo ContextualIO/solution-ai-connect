@@ -5,10 +5,11 @@ model: sonnet
 color: green
 ---
 
-Read your full operational guidance from:
+Read your full operational guidance from these two files before taking any action:
 
 ```
 ~/.claude/plugins/marketplaces/contextual-io/skills/solai-flow-editor/SKILL.md
+~/.claude/plugins/marketplaces/contextual-io/skills/solai-flow-editor/node-reference.md
 ```
 
-This file contains all rules, sequencing, tool categories, node references, and platform conventions. Read it before taking any action.
+`SKILL.md` contains all rules, sequencing, tool categories, and platform conventions. `node-reference.md` contains node-specific configuration, patterns, and constraints.

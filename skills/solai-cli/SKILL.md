@@ -6,61 +6,75 @@ argument-hint: "[task]"
 
 # SolAI CLI
 
-Use this skill only in environments with local shell access such as Claude Code, Claude Cowork, OpenCode, Codex, or another local coding agent.
+This skill has two layers:
 
-If shell access is unavailable, stop and tell the user this skill requires a shell-capable runtime. If docs would still help, switch to `solai-knowledge`.
+- **Reference and guidance** — command patterns, schema rules, flow heuristics, type IDs, write discipline. Available in any runtime, useful for planning, understanding, and answering questions even without executing anything.
+- **Execution** — running `ctxl` commands against a live tenant. Requires local shell access (Claude Code, Claude Cowork, OpenCode, Codex, or similar).
+
+If shell access is unavailable, make clear that commands cannot be executed — but continue to use this skill's reference material to answer questions, explain concepts, or help the user plan what they would run.
 
 ## Setup Check
 
-On first invocation, verify auto-update is enabled:
+On first invocation each session, check for plugin updates. Before running, tell the user:
+
+> Checking for Solution AI Connect plugin updates — you may be prompted to allow this command.
+
+Then run:
 
 ```bash
-jq '.extraKnownMarketplaces["contextual-io"].autoUpdate // false' ~/.claude/settings.json
+claude plugin update ctxl@contextual-io
 ```
 
-If the result is not `true`, tell the user:
+The raw command output uses `ctxl` as the marketplace plugin identifier, but `ctxl` is also the name of the separately-versioned Contextual CLI. To avoid confusion, **always restate the result in "Solution AI Connect plugin" terms** rather than letting the raw output stand:
 
-> Auto-update is not enabled for the ctxl plugin. You may be running an outdated version of this skill. To enable it, add `"autoUpdate": true` to the `contextual-io` entry in `~/.claude/settings.json`, or ask me to do it for you.
+- If the output contains "updated from X to Y": tell the user "Solution AI Connect plugin updated from X to Y — restart Claude to load the new version, then re-invoke this skill."
+- If the output says "already at the latest version (X)": tell the user "Solution AI Connect plugin is already at the latest version (X)." Then proceed.
 
-Then offer to apply the fix:
-
-```bash
-jq '.extraKnownMarketplaces["contextual-io"] += {"autoUpdate": true}' ~/.claude/settings.json > /tmp/ctxl-settings-patch.json && mv /tmp/ctxl-settings-patch.json ~/.claude/settings.json
-```
-
-Only show this once per session. If the user declines or auto-update is already `true`, proceed without further mention.
+Only run this check once per session.
 
 ## Installation & Setup
 
 The Contextual CLI (`ctxl`) must be installed globally before using this skill. Requires Node.js 18.0.0 or later.
 
+Install via npm (or your preferred Node package manager — `pnpm`, `yarn`, `bun`, etc.):
+
 ```bash
 npm install -g @contextual-io/cli
 ```
 
-Visit [npm/@contextual-io/cli](https://www.npmjs.com/package/@contextual-io/cli) for the latest version and release notes.
+If the user has a preferred package manager or install method, defer to their choice. Visit [npm/@contextual-io/cli](https://www.npmjs.com/package/@contextual-io/cli) for the latest version and release notes.
 
 ## Runtime Checks
 
 1. Confirm the environment can run shell commands.
 2. Run `command -v ctxl && ctxl --version`.
 3. If `ctxl` is missing, tell the user it must already be installed locally before this skill can run.
+4. Read [cli-reference.md](cli-reference.md) now. Use it as the authoritative command reference for the rest of this session — do not construct `ctxl` commands from memory.
 
 ## Supporting Files
 
-- Use [cli-reference.md](cli-reference.md) for the near-1:1 command map.
-- Use `${CLAUDE_SKILL_DIR}/scripts/contextual_login.py --state-dir "${CLAUDE_PLUGIN_DATA:-${CLAUDE_SKILL_DIR}/.local}/login-jobs"` for browser login orchestration.
-- Use `${CLAUDE_SKILL_DIR}/scripts/json_diff.py` to preview replace operations before writing.
+Two helper scripts are bundled with this skill. When invoking them, tell the user what is happening before running so the path doesn't appear alarming:
+
+- **`contextual_login.py`** — orchestrates browser-based login for a config. When invoking, tell the user: "Starting browser login for `<config-id>` — a verification code will appear shortly for you to confirm in your browser."
+  ```
+  ${CLAUDE_SKILL_DIR}/scripts/contextual_login.py --state-dir "${CLAUDE_PLUGIN_DATA:-${CLAUDE_SKILL_DIR}/.local}/login-jobs"
+  ```
+
+- **`json_diff.py`** — previews the difference between the current and proposed version of a flow or record before any write is made. When invoking, tell the user: "Generating a diff so you can review what will change before anything is written."
+  ```
+  ${CLAUDE_SKILL_DIR}/scripts/json_diff.py <current-file> <proposed-file>
+  ```
 
 ## Hard Rules
 
-- Never read `~/.config/ctxl/config.json` or any raw credential store.
+- Never read raw `ctxl` config or credential files directly — always use `ctxl` CLI commands to interact with configs and credentials.
 - Never call Contextual APIs directly with `curl`, `fetch`, custom headers, or handwritten HTTP requests.
 - Never expose or summarize bearer tokens, refresh tokens, or auth headers.
 - Do not use `ctxl config delete`, `ctxl records delete/remove/rm`, or `ctxl types delete/remove/rm`.
 - Before any `replace` or `patch` operation, show a diff or the exact planned patch flags and ask for explicit confirmation.
 - Once you know the target config, prefer `--config-id <config-id>` on tenant commands even if you already ran `ctxl config use`.
-- Use `solai-knowledge` before making detailed platform claims about flows, nodes, routing, runtime behavior, payload shapes, or implementation patterns.
+- **Exhaust plugin-side reference content first.** `cli-reference.md`, `node-reference.md`, and this `SKILL.md` are kept current with empirically-verified build-time reality — canonical for CLI shapes, JSONL formats, flow record structure, node-level behavior, and sequencing rules. Use `solai-knowledge` for platform/runtime behavior not covered there. For genuinely cross-cutting queries (spanning both build-time mechanics and broader platform context), run both in parallel — the answers are complementary, not duplicative. Plugin-first precedence is current state; may shift as `solai-knowledge` matures.
+- **Do not `grep`, `find`, or otherwise enumerate the plugin install directory** (`~/.claude/plugins/...`) to locate plugin reference content directly. That path is implementation detail and bypasses skill-level guidance (sequencing rules, validation patterns, hex-id pre-generation, etc.). To access plugin-side reference, invoke the relevant skill — it loads the reference content properly into context.
 - Before starting `ctxl mcp serve`, verify the config is logged in. The server rejects expired or missing tokens at startup.
 
 ## Config Workflow
@@ -89,6 +103,8 @@ ctxl config use <config-id>
 ## Automatic Auth Recovery
 
 If a tenant command reports that the config is not logged in, unauthorized, expired, or otherwise needs auth:
+
+Tell the user: "Your session isn't logged in or has expired — starting browser login for `<config-id>` now."
 
 1. Start login for that same config:
 
@@ -125,7 +141,6 @@ Type discovery follows two tracks:
 - reserved admin component types: do not rely on `ctxl types list` to discover these. For normal callers, type listing is effectively limited to tenant-defined custom object types. Treat this reserved set as known IDs:
   - `agent`
   - `flow`
-  - `topics`
   - `api-configuration` (known to users as "Connections")
   - `ai-route`
   - `jwks-configuration`
@@ -134,7 +149,7 @@ Type discovery follows two tracks:
 
 When inspecting a tenant, choose the track explicitly:
 
-1. If the user is asking about flows, agents, connections, AI routes, JWKS configs, authz code apps, or topics, start from the reserved component map.
+1. If the user is asking about flows, agents, connections, AI routes, JWKS configs, or authz code apps, start from the reserved component map.
 2. If the user is asking about tenant business data, schemas, records, triggers, actions, or custom objects, start with `ctxl types list`.
 3. Once you know the type ID, use `ctxl types get native-object:<type-id> --config-id <config-id>` to retrieve the full JSON schema — enums, patterns, constraints, defaults, and relations. This is the authoritative source for field shapes before any create or replace operation. Then use `ctxl records ... --type <type-id> --config-id <config-id>`.
 
@@ -147,13 +162,15 @@ Common reads:
 Reserved admin component examples:
 
 ```bash
-ctxl types get native-object:flow --config-id <config-id>
 ctxl records list --type flow --config-id <config-id>
-ctxl types get native-object:agent --config-id <config-id>
 ctxl records list --type agent --config-id <config-id>
-ctxl types get native-object:ai-route --config-id <config-id>
 ctxl records list --type ai-route --config-id <config-id>
+ctxl records list --type api-configuration --config-id <config-id>
+ctxl records list --type jwks-configuration --config-id <config-id>
+ctxl records list --type authorization-code-app --config-id <config-id>
 ```
+
+**When answering general questions about a tenant** ("what's in this tenant?", "what does this tenant do?", "what solutions are built here?"), fetch all six reserved component types in parallel alongside `ctxl types list` for custom object types. Empty results are fine — they complete the picture. Do not skip any component type because it seems unlikely to have content.
 
 Tenant-defined data object example:
 
@@ -249,10 +266,56 @@ When summarizing a flow, inspect `node_red_data.flows` and report:
 - major branches
 - referenced record types
 
-For flow edits:
+For creating new flows:
+
+**Always use the CLI-stub + flow editor handoff pattern.** Never try to write complex node content (HTML, JavaScript, multi-line logic) through the CLI — shell escaping across Python/JSON/JS layers is error-prone and unreliable.
+
+**Step 1 — Clarify flow type before generating anything:**
+Ask the user: "Is this an HTTP flow (serves requests), an event flow (triggered by object-type events or agents), or a scheduled flow (cron)?" The skeleton structure differs by type.
+
+**Step 2 — Create a minimal but complete skeleton via CLI:**
+
+Generate hex IDs for all nodes (see cli-reference.md). Build the skeleton with:
+- The structural nodes (entry, stub function, terminal)
+- Full error handling chain from the start — a flow that opens lint-clean is the goal
+
+| Flow type | Skeleton |
+|-----------|---------|
+| HTTP | `http-in` → `function` (stub) → `http-response 200` + `catch` (uncaught) → `log-tap` (error/full) → `http-response 500` |
+| Event | `contextual-start` → `function` (stub) → `contextual-end` + `catch` (uncaught) → `log-tap` (error/full) → `contextual-end` |
+| Scheduled | `inject` (cron) → `function` (stub) → `contextual-end` + `catch` (uncaught) → `log-tap` (error/full) → `contextual-end` |
+
+Stub function node content: `// TODO: implement\nreturn msg;`
+
+Always write the flow JSON to a file using a Python heredoc (`<< 'PYEOF'`) — never inline complex content in a shell command. See cli-reference.md for the correct file-based approach.
+
+**Step 3 — Hand off to the flow editor:**
+
+After creating the flow, **resolve the tenant ID first** by running `ctxl config current --json`, then tell the user with the fully-resolved URL: "The flow skeleton is created with error handling in place — open it in your browser at `https://<flow-id>.flow.<resolved-tenant-id>.my.contextual.io/.editor` and I can build out the logic interactively through the Flow Editor, which is much cleaner for complex node content." Never hand the user a URL with `<tenant-id>` as a literal placeholder — fill it in.
+
+---
+
+For editing existing flows:
+
+**Preferred path: Flow Editor Session via MCP tunnel.** Before editing a flow via CLI:
+
+1. Check whether `mcp__ctxl-flow-editor__*` tools appear in the deferred tool list — if they do, the MCP server is running (Ctxl Tool or manual `ctxl mcp serve`).
+2. If the tools are present, call `list_sessions` to check for active browser sessions. **Tool availability alone does not mean a session exists** — a session only exists when the user has the flow open in their browser.
+3. Only if `list_sessions` returns one or more sessions, recommend the live editor path and offer to switch to `solai-flow-editor`. Reasons to prefer it:
+   - Changes are staged live and visible before the flow is saved or versioned
+   - Node-level granularity — no need to touch the full flow JSON
+   - Safer for large or complex flows where a full-record replace risks corrupting structure
+
+   Tell the user: "I can see a Flow Editor session is available — I can make these changes live in the editor so you can review them before saving. Would you like to do that, or continue via CLI?"
+
+4. If no sessions are returned, proceed with the CLI path below. Optionally note that opening the flow in a browser would enable the live editing experience.
+
+If the tools are not available at all, proceed directly with the CLI path and optionally note that opening the Ctxl Tool would enable live editing.
+
+**CLI path (when MCP tunnel is unavailable or user prefers it):**
 
 1. Fetch the current flow to a temp file.
-2. Create the proposed edited file.
+2. Create the proposed edited file using Python — never inline complex content in shell flags.
 3. Preview the diff:
 
 ```bash
@@ -276,7 +339,8 @@ For record patches, show the exact `ctxl records patch ...` flags before confirm
 - Treat event-trigger payload data as `msg.payload` unless docs clearly say otherwise.
 - `log-tap` must have `outputs: 1` and a valid `level`.
 - Wire `log-tap` inline in the chain, not as a dead-end fork.
-- For new flows, preserve top-level `flows_cred: {}` and tab `env: []`.
+- `flows_cred: {}` must be inside `node_red_data`, not at the top level of the flow record.
+- Tab objects in existing flows typically include `env: []` — preserve it when editing; omitting it may cause issues in the editor.
 - After edits, re-read the flow and verify the change actually landed.
 
 ## MCP Server
@@ -333,7 +397,7 @@ All other tools are dynamically loaded from SolutionAI's tool manifest for the `
 ### Session model
 
 - `list_sessions` is scoped to the current user and current tenant (from the active config). Other users' browser sessions never appear, even on a shared tenant.
-- The user must have the target flow open in their own browser for it to appear. If the desired flow is missing, direct the user to open it themselves.
+- The user must have the target flow open in their own browser for it to appear. If the desired flow is missing, direct the user to open it themselves — do not attempt to open it programmatically. Developers may have multiple browser profiles, windows, or tenant sessions active; only the user knows which one is the right context for this work.
 - **Connection handshake**: The first tool call targeting a flow triggers an "MCP requesting access" dialog in the **SolutionAI tab of the Flow Editor's right sidebar**. The user must click **Accept** for the tunnel to be established. Always prompt the user to watch for and accept this dialog before expecting tool calls to succeed. If they deny, the call fails and they must re-trigger it.
 - If the user has the same flow open in multiple browser tabs, all tabs receive the accept dialog simultaneously — the first to accept wins the tunnel.
 - Each tool call requires a `flowId`. If `--flow` was passed at startup, that flow is used globally. Otherwise the agent must pass `flowId` with each call, or call `list_sessions` first to discover available flows.

@@ -1,17 +1,30 @@
 ---
 name: solai-flow-editor
-description: Edit live Contextual flows in the Flow Editor — read state, import nodes, wire connections, update properties, edit code, and validate. Use AFTER a plan is in place. Do NOT plan architecture here — use plan-flow first.
+description: Edit live Contextual flows in the Flow Editor — add, change, move, wire, delete, rename, configure, group, copy, or validate nodes / wires / properties / code in a flow open in the user's browser. Also the source-of-truth for node-level behavior, configuration, and authoring patterns — function-node logging (`await logger.*`), loop wiring, Native Object node TypedInput patterns, `http-response` status precedence, etc. (see `node-reference.md`). Required before any `mcp__ctxl-flow-editor__*` call other than `info`/`list_sessions` orientation. Use AFTER planning; do NOT plan architecture here — use plan-flow first.
 ---
 
 # SolAI Flow Editor
 
 Use this skill to interact with live Contextual flows through the `ctxl-flow-editor` MCP server.
 
+## When to invoke
+
+Invoke this skill **before** any `mcp__ctxl-flow-editor__*` tool call that inspects or modifies a flow. The only exempt orientation tools are `info` and `list_sessions` (used to answer "is the server up / which flows are open?"). Everything else is gated, including reads.
+
+**Trigger phrases** — load the skill as soon as user intent matches any of these against a live flow:
+- **Edit:** add, change, update, move, wire, connect, delete, rename, configure, set, fix, group, copy a node / wire / property / code / tab
+- **Inspect:** look at, check, read, validate, search flow contents
+- **Test:** create `inject` or `contextual-test` nodes, set up test data
+
+The trigger is **intent to work on a flow**, not the literal word "edit". A request like *"add some comment nodes to my hello world flow"* qualifies — load the skill before the first `editor_state` / `flow_read` / `type_info` / `import` call.
+
+**Why this matters:** loading this skill brings node-reference.md, sequencing rules (especially node ID pre-generation — see Sequencing rules step 3), and the silent-failure catalogue into context. Skipping it produces failures the MCP server does not surface clearly: missing pre-generated IDs, wrong node types, dropped cross-batch wires, broken `tray_open`→`tray_read` sequences, malformed `editable-list` defaults.
+
 ## Setup Check
 
 The MCP server must already be running in the user's own terminal — never start it yourself. Any process started via shell from this context is ephemeral and dies immediately.
 
-**If `mcp__ctxl-flow-editor__*` tools appear in the deferred tool list, the server is already up.** Load the tool schemas and call `info` / `list_sessions` to verify the connection.
+**If `mcp__ctxl-flow-editor__*` tools appear in the deferred tool list, the MCP server is running** — but this does not mean any flow sessions are active. Load the tool schemas and call `list_sessions` to check for live browser connections. Only proceed with flow editing if `list_sessions` returns sessions. If it returns none, the user needs to open the target flow in their browser first.
 
 If those tools are not available, tell the user to run this in their own terminal first:
 
@@ -19,11 +32,13 @@ If those tools are not available, tell the user to run this in their own termina
 ctxl mcp serve --config-id <config-id>
 ```
 
+**Read [node-reference.md](node-reference.md) now — this is not optional.** It contains node-specific foot-gun warnings that `type_info` does not surface: e.g. `query-native-object`'s `query: ""` is a guaranteed runtime `JSON.parse("")` throw despite being the registry default (canonical match-all form is `"{}"`); the loop node has three silent setup-gates that fail to a port-0-only firing; `http-response`'s configured `statusCode` silently overrides `msg.statusCode`; Native Object nodes have TypedInput companion-field pairs that runtime Zod-rejects when absent even though `type_info` marks them `required: false`. **`type_info` reports registry defaults; `node-reference.md` warns you when those defaults will throw at runtime.** Skipping it ships silent foot-guns the runtime catches but `type_info` does not.
+
 ## What this MCP server is
 
 The `ctxl-flow-editor` MCP server bridges this AI session to an active browser-based Contextual Flow Editor session. Changes made through these tools are reflected live in the browser editor — you are not editing a file.
 
-A flow session only exists when the flow is open in a browser tab. `list_sessions` reflects live browser connections. If a flow is not listed, the user needs to open it in their browser before you can work on it.
+A flow session only exists when the flow is open in a browser tab. `list_sessions` reflects live browser connections. If a flow is not listed, the user needs to open it in their browser before you can work on it. The correct URL to open the Flow Editor is `https://<flow-id>.flow.<tenant-id>.my.contextual.io/.editor` — without `/.editor`, HTTP-based flows will serve their root endpoint instead of opening the editor. **Always resolve the tenant ID** by running `ctxl config current --json` (via Bash) before giving the URL to the user — never hand them a URL with `<tenant-id>` as a literal placeholder.
 
 ## Terminology
 
@@ -40,23 +55,29 @@ Use these terms consistently. Never use internal engine terminology.
 
 ## Platform framing
 
-This is a proprietary platform. Do not apply assumptions from public knowledge of other flow-based tools. When uncertain about node behaviour or platform conventions: if a live session is active, use `type_info` to retrieve the node definition and documentation directly from the connected editor — that is the authoritative source. Only defer to the `solai-knowledge` skill when no live session is available.
+This is a proprietary platform. Do not apply assumptions from public knowledge of other flow-based tools. Source-of-truth precedence when uncertain about node behaviour or platform conventions:
+
+1. **`type_info`** (if a live session is active) — the connected editor's authoritative definition for the specific node type
+2. **`node-reference.md` and this `SKILL.md`** — kept current with empirically-verified build-time reality via the BYOS pioneer feedback cycle; canonical for node-level behavior, authoring patterns, and sequencing rules
+3. **`solai-knowledge`** — for platform/runtime behavior not in (1) or (2)
+
+For genuinely cross-cutting queries, run multiple sources in parallel — the answers are complementary. Precedence may shift as `solai-knowledge` matures.
 
 ## Available tools (by category)
 
 - **Read state**: `editor_state`, `flow_read`, `search`, `validate`, `type_info`, `info`, `logger_messages`, `result_read`
 - **Navigate**: `navigate`, `select`
-- **Write**: `import`, `wire`, `node_update`, `delete`, `move`, `copy`, `group`
+- **Write**: `import`, `wire`, `node_update`, `delete`, `move`, `copy`, `group` — note: `delete` requires `useSelectionAction` as a **boolean**, not a string
 - **Tray** (node properties panel): `tray_open`, `tray_read`, `tray_write`, `tray_commit`
 - **Code** (function/template node editors): `code_read`, `code_write`, `code_edit`, `code_grep`, `code_patch`
 
 ## Important behaviors
 
+- **`import` is placement only — never include cross-batch wires:** Any wire targeting a node outside the imported batch is silently dropped with no error, always, regardless of whether the target exists. Do not include cross-batch wires in import payloads and "fix them if they drop" — they will always drop. Always wire after import using the `wire` tool. Intra-batch wires (both ends in the same import call) are the only wires that survive import.
 - **Navigation side-effects:** Many tools (`import`, `node_update`, `navigate`, `code_edit`, etc.) navigate the user's viewport, switch tabs, and change selection in real-time. Be deliberate — don't jump the user around unnecessarily.
 - **Concurrent editing:** The user may be editing at the same time. Warn before editing code in a node they may be actively working in.
-- **Saving:** Changes are live but not saved until the user acts. Do not remind by default — mention **Save the Flow** only when needed (before run/test/verify, or when context is unclear).
+- **Saving:** Changes are live but not saved until the user acts. Do not remind by default — mention **Save the Flow** only when needed (before run/test/verify, or when context is unclear). The button in the Flow Editor UI is labelled **Save** — never use the word "Deploy" to refer to this action. Deploying means binding a flow to an Agent for production execution, which is a separate step.
 - **Testing:** You cannot run flows or view test results. You can create `contextual-test` nodes and `inject` nodes for manual testing.
-- **Imported nodes start detached:** Internal wires among an imported batch are preserved, but no connections to existing canvas nodes are made. Use `wire` after importing to connect to existing nodes.
 - **One wire per output port:** Do not connect multiple wires from the same output port to different destinations. `log-tap` nodes must be wired inline (A → log-tap → B), never branched off a shared output.
 - **Navigate before importing:** `import` always targets the active tab. Call `navigate` to switch to the correct tab before each `import`. Be aware that `tray_read`, `code_read`, `node_update`, and `navigate` with `action: "reveal"` can switch the active tab as a side-effect — re-navigate if uncertain.
 
@@ -65,9 +86,16 @@ This is a proprietary platform. Do not apply assumptions from public knowledge o
 Follow these on every task:
 1. Call `list_sessions` if the target flow ID is unknown
 2. Call `editor_state` to confirm the active tab before any write operation
-3. Call `type_info` before importing a node type you haven't used in this session
-4. Call `navigate` to the target tab before calling `import`
-5. Call `validate` scoped to the affected tab after every batch of changes. Separate findings into **newly introduced** vs **pre-existing**. Auto-fix newly introduced **errors**. Present newly introduced **warnings** to the user. Report pre-existing issues for awareness only.
+3. **Generate all node IDs before doing anything else that leads to `import`.** Use `python3 -c "import secrets; print(secrets.token_hex(8))"` via Bash — one call per node needed. An import attempted without a pre-generated ID fails immediately. Do this before `type_info`, before building the payload, before navigate.
+4. Before any `import` or `node_update` of a node type you haven't used in this session: **first** confirm `node-reference.md` has been read this session and consult its entry for this node type (the foot-gun warnings live there, not in `type_info`); **then** call `type_info` to confirm the property shape. Both are needed — `type_info` reports defaults, `node-reference.md` warns when those defaults will throw at runtime. Any field showing `defaultValue: "[Circular]"` in the `propertyMap` is an editable-list array — always set it to `[]` explicitly in the import payload. This is reliable across all node types; `[Circular]` is a JSON serialisation artifact, not a missing value.
+5. Call `navigate` to the target tab before calling `import`
+6. Call `validate` scoped to the affected tab after every batch of changes. Treat the results as follows:
+   - **Newly introduced errors** — block completion, fix immediately before continuing
+   - **Newly introduced warnings** — assess severity before acting:
+     - Warnings that indicate missing error handling or broken flow patterns (e.g. `require-catch-nodes`) are runtime risks — fix these before reporting the task as done
+     - Cosmetic, structural, or naming warnings — surface to the user and leave the decision to them
+   - **Pre-existing issues** — report for awareness only, do not auto-fix
+   - Never summarise as "zero errors" if warnings exist — always report errors and warnings separately
 
 ## Editing code
 
@@ -97,8 +125,9 @@ Changed lines are highlighted in the editor. Do not call `tray_commit` after cod
 
 | Goal | Tool | Notes |
 |------|------|-------|
-| Full live field model with values | `tray_read` | Auto-opens tray. Resolves TypedInput state, editor values, tab associations. |
-| Raw node data without side-effects | `flow_read` with `action: "node"` | Lightweight. No tray interaction. Missing live editor values. |
+| Full live field model with values | `tray_open` → `tray_read` | `tray_open` first, then `tray_read`. Resolves TypedInput state, editor values, tab associations. |
+| Raw node data without side-effects | `flow_read` with `action: "node"` | Lightweight. No tray interaction. Missing live editor values **and missing `wires` (downstream targets — both `action:"node"` and `action:"object"` omit them).** |
+| **Wire / connection audit on a single node** | **`flow_read` with `action: "tab"`, `includeNodeDetails: true`** | **Returns the full tab — pick the target node from the `nodes` array. Only path that includes `wires` per node today.** |
 | Code editor content | `code_read` | Paginated. Works while expanded editor is open. |
 | Node type defaults and help | `type_info` | Use before creating nodes or to understand a type's properties. |
 
@@ -112,8 +141,14 @@ Changed lines are highlighted in the editor. Do not call `tray_commit` after cod
 
 ## Deployment discipline
 
-- Import in batches of 3–5 nodes max — larger imports cause silent node loss
-- After each import batch, call `flow_read` on the tab and confirm node count matches expectation before continuing
+Batch size is governed by **payload size**, not node count. In testing with hefty function nodes (20+ lines of real code each), single imports of 10, 15, and 20 nodes all landed cleanly. The failure mode observed at the extreme was an MCP connection **timeout** — not silent node loss. The practical limit appears to be the MCP round-trip timeout (~30s), not a node count ceiling.
+
+Guidelines:
+
+- Comment/stub nodes: no meaningful limit observed up to 20
+- Function nodes with substantial code: up to 20 landed reliably in a single import
+- If a timeout occurs: split the batch and retry — no partial writes were observed; it's all-or-nothing
+- After each import, always verify `nodeCount` in the response matches expectation before continuing
 - Never work from memory — always read current state before acting
 - Every tab needs error handling: catch → log-tap (error) → http-response 500 or contextual-error
 
@@ -131,7 +166,7 @@ tray_read → tray_write (one or more calls)
 
 Only call `tray_commit` when the user explicitly asks to save or commit. Otherwise leave the tray open for review.
 
-`tray_read` auto-opens the tray — use `tray_open` only when you don't need to read values first. For editable lists, prefer semantic row selectors from `tray_read(includeListItems: true)`. Treat `warningCount`/`warnings` on `tray_write` responses as a sign to re-inspect tray state before continuing.
+`tray_read` does **not** auto-open the tray — always call `tray_open` first, then `tray_read`. For editable lists, prefer semantic row selectors from `tray_read(includeListItems: true)`. Treat `warningCount`/`warnings` on `tray_write` responses as a sign to re-inspect tray state before continuing.
 
 When reading across multiple nodes, moving from tray to tray is fine. Before switching to non-tray tools on a different node, close with `tray_commit action: "cancel"` — unless you made edits, in which case leave the tray open for review.
 
@@ -180,193 +215,6 @@ Check these after mutation tool calls:
 | `http-response` | Terminal for HTTP flows — set status codes appropriately |
 | `log-tap` | All logging — replaces debug node entirely |
 | `catch` | Error handling — see catch node rules below |
-
----
-
-## log-tap node
-
-`log-tap` replaces the `debug` node entirely. The `debug` node is **deprecated and non-functional** — never suggest or create debug nodes.
-
-Default configuration:
-```json
-{
-  "level": "debug",
-  "toConsole": false,
-  "toSideBar": true,
-  "outputProperty": "payload",
-  "outputPropertyType": "msg"
-}
-```
-
-In a `catch` error handling context:
-```json
-{
-  "level": "error",
-  "outputProperty": "",
-  "outputPropertyType": "full"
-}
-```
-
-When logging the full `msg` object:
-```json
-{
-  "outputProperty": "",
-  "outputPropertyType": "full"
-}
-```
-
-`log-tap` nodes must always be inline on the flow (A → log-tap → B), never dangling off to the side.
-
-## catch node rules
-
-- Catch nodes only apply to nodes on the **same tab or subflow**
-- Scope to specific nodes, all nodes in a group, or the entire tab — do NOT individually select every node
-- **"Catch errors from: uncaught errors only" should almost always be checked** — prevents duplicate error handling
-- Top-level catch nodes (whole tab) should almost always use uncaught only
-- Catch nodes inherit the end-node requirement of the tab or group they protect:
-  - HTTP route catch → must reach `http-response`
-  - Event route catch → must reach `contextual-end`
-  - AI tool route catch → must reach `ai-tool-response`
-- When multiple route types share a tab, each needs its own scoped catch node
-- Do NOT create a separate group + catch for every individual node
-
----
-
-## HTTP nodes — use Contextual Connection-native nodes
-
-For all outbound HTTP communication, use Contextual Connection-native nodes. **Never use the generic `http request` node.**
-
-| Operation | Node |
-|-----------|------|
-| GET | `http-get` |
-| POST | `http-post` |
-| PUT | `http-put` |
-| PATCH | `http-patch` |
-| DELETE | `http-delete` |
-
-Usage pattern in end-to-end flows: `function` → `http-[method]` → `function`
-
-All Contextual HTTP nodes use:
-- `"nativeObjectConfig": "default-native-object-config"`
-- `"apiIdType": "conn"` with the correct Connection `apiId` from the tenant
-
-The `http-in` and `http-response` nodes handle string-to-object and object-to-string conversion automatically — no separate parse/convert nodes needed.
-
-Always use `type_info` to confirm the full property shape before importing any HTTP node.
-
----
-
-## inject nodes — simulating trigger and action payloads
-
-Use `inject` nodes only when explicitly requested for manual testing in the Flow Editor. Never configure `inject` to automatically start or perform rapid repeated injection.
-
-### Post-Insert trigger shape
-Headers include: `x-subkind: post-insert`, `x-kind: trigger`, `x-type-id`, `x-uri`.
-Payload is the full new record including `_metaData`.
-
-### Post-Update trigger shape
-Headers include: `x-subkind: post-update`.
-Payload shape: `{ "new": { ...record }, "old": { ...record } }` — both with `_metaData`.
-
-### Post-Delete trigger shape
-Headers include: `x-subkind: post-delete`.
-Payload is the deleted record including `_metaData`.
-
-### Send-to-Agent action shape
-Headers include: `x-kind: action`, `x-subkind: <action-id>`, `x-type-id`.
-Payload shape: `{ "instance": { ...record }, "params": {} }`.
-
-When building inject test payloads for a specific Object Type, use `type_info` or ask the user for the actual `x-type-id` and record field shape.
-
----
-
-## Native Object nodes
-
-Use these nodes to interact with records stored in the Contextual platform. `function` nodes cannot interact directly with Native Object records.
-
-| Node | Purpose |
-|------|---------|
-| `search-native-object` | Search/query records of an Object Type |
-| `get-native-object` | Retrieve a single record by ID |
-| `create-native-object` | Create a new record |
-| `patch-native-object` | Patch a record (input must be a JSON patch operation) |
-| `put-native-object` | Replace a record |
-| `import-native-objects` | Bulk import an array of records |
-| `delete-native-object` | Delete a record |
-| `execute-native-object` | Execute an Action on a record (dispatches to an Agent/Flow) |
-
-All use `"nativeObjectConfig": "default-native-object-config"`. Always confirm the Object Type `typeId` (lowercase with dashes, not the display name) before use.
-
-For `patch-native-object`, include a `function` node before it to prepare the JSON patch payload.
-For `import-native-objects`, include a `function` node before it to prepare the records array.
-
-Always use `type_info` to confirm the full property shape before importing any Native Object node.
-
----
-
-## function nodes
-
-Prettify all code in `function` nodes. Follow the **Function Node Return Contract** below.
-
-Supported NPM packages (available out of the box): `uuid`, `short-uuid`, `jsonwebtoken`
-
-Declare packages in `libs` and reference by the `var` name directly — do NOT use `const X = require(...)`:
-```json
-"libs": [{ "var": "short", "module": "short-uuid" }]
-```
-
-### Function Node Return Contract
-
-- Never use `return null` as the full return value
-- Single-output nodes: `return msg`
-- Multi-output nodes: return an array, routing down exactly one output per invocation (e.g. `return [msg, null]` or `return [null, msg]`)
-- Every branch — success, validation, error — must continue to appropriate downstream handling (`contextual-end`, `http-response`, `ai-tool-response`, or explicit error route)
-- `null` is only valid inside an output array to suppress delivery on specific outputs
-- Logging is not an endpoint
-
-## template nodes
-
-- `format`: default `"handlebars"` (options: `"html"`, `"json"`, `"javascript"`, `"css"`, `"markdown"`)
-- `syntax`: default `"mustache"` (only other option: `"plain"`)
-- `output`: default `"str"` (options: `"json"`, `"yaml"`)
-- Use Mustache syntax only — Handlebars advanced logic (e.g. `{{#each`) is **not supported**
-
----
-
-## Web application and front-end guidelines
-
-When building user-facing web interfaces (HTML/CSS/JS in `template` nodes):
-
-**Design standards:**
-- Follow modern, responsive best practices
-- Use Bootstrap or equivalent toolkit for layout and components
-- Use Font Awesome for icons
-- Use `https://picsum.photos/{width}/{height}` for placeholder images (append `?blur=2` for blurred)
-- Use DiceBear for avatars/profile icons: `https://api.dicebear.com/9.x/thumbs/svg?seed=Name`
-- Avoid inline CSS — use `<style>` blocks with comments for atypical definitions
-- Use Mustache (`{{ }}`) in templates — not Handlebars
-
-**Before building any page, ask:**
-- Should I include a navigation bar? Footer? Copyright?
-- Would images improve this layout?
-- Who is the end user, and what content do they need?
-
-Outline content sections for user confirmation before building complex pages.
-
-**Forms:**
-- Mark required fields appropriately
-- Implement client-side validation
-- Provide clear, user-friendly error feedback
-
-When writing HTML/CSS/JS as part of an end-to-end flow, import nodes directly by default. Use `interactiveInsert` only if the user explicitly asks for manual placement.
-
----
-
-## Other supported nodes
-
-`comment`, `inject`, `catch`, `switch`, `change`, `range`, `delay`, `trigger`, `rbe`, `loop`, `split`, `join`, `sort`, `batch`, `template`, `status`, `MSSQL`, `sse-client`, `odbc`, `gql`, `kafka-producer`, `source-from`, `sink-collect`, `map`, `batch-source`, `filter-source`, `read-stream`, parsers: `csv`, `html`, `json`, `xml`, `yaml`
-
----
 
 ## Output format
 

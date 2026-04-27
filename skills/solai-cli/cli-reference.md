@@ -32,10 +32,17 @@ Record input gotchas:
 Flow records have a required internal structure. Getting this wrong produces a flow record that silently fails to open in the editor with no error message.
 
 **Critical structural rules:**
-- Tab `id` values must be **16-character lowercase hex strings** (e.g. `"aadb6bbe8c6cd017"`). A slug like `"tab1"` looks valid but breaks the editor.
-- Every flow must include a `native-object-config` config node with `"id": "default-native-object-config"`. Its `name` field must be set to the **active config's tenant ID** (run `ctxl config current --json` to confirm).
+- Tab `id` values, when present, must be **16-character lowercase hex strings** (e.g. `"aadb6bbe8c6cd017"`). A slug like `"tab1"` looks valid but breaks the editor.
+- Every flow must include a `native-object-config` config node with `"id": "default-native-object-config"` — that id is the load-bearing reference target for consuming nodes (`query-native-object`, `get-native-object`, etc.).
 - `flows_cred: {}` must be **inside `node_red_data`**, not at the top level.
 - Do **not** include `_metaData` — the platform generates it automatically.
+
+**What's load-bearing vs. convention on `native-object-config`:**
+- `id` and `type` are load-bearing — `id` matches the consumer-side `nativeObjectConfig` reference; `type` makes it a config node.
+- `name` is a **display label**, not a tenant resolver. By convention the dashboard sets it to the active tenant id (e.g. `"speedrun"`); you can do the same. The runtime ignores this field — orgId and tenant are resolved from the request context, not from this field.
+- Empty credential / host fields (`host`, `orgId`, `clientId`, etc.) are **not required**. They're inert — present-as-empty-string and absent are equivalent. Set them only when overriding a default for a non-canonical scenario.
+
+**Tab presence:** the dashboard's "new flow" UI does **not** emit a tab in the persisted record. The editor injects a default `Flow 1` tab on load and only persists it once a tab-touching change is saved. So a tab-less persisted record is valid; the example below includes one for clarity in cases where you're writing programmatically and want a known tab id present from the start.
 
 **Single-tab empty flow** (reference shape, pretty-printed for readability — minify to one line before passing to `ctxl records add`):
 
@@ -84,10 +91,71 @@ Flow records have a required internal structure. Getting this wrong produces a f
 }
 ```
 
-To generate a valid 16-char hex tab ID:
+To generate a valid 16-char hex tab ID, tell the user: "Generating a random node ID using Python's built-in `secrets` module — this is a standard random number generator, no credentials or sensitive data involved." Then run:
 ```bash
 python3 -c "import secrets; print(secrets.token_hex(8))"
 ```
+
+### Flow skeleton patterns
+
+When creating a new flow, always include error handling from the start so the flow opens lint-clean. Use these skeletons based on flow type. Generate all node IDs upfront, write the JSON via Python heredoc (never inline in a shell flag), minify to JSONL before passing to `ctxl records add`.
+
+**HTTP flow** — `http-in` → `function` (stub) → `http-response 200` + `catch` → `log-tap` → `http-response 500`:
+```python
+# python3 << 'PYEOF'
+import json, secrets
+
+tab     = secrets.token_hex(8)
+h_in    = secrets.token_hex(8)
+fn      = secrets.token_hex(8)
+h_ok    = secrets.token_hex(8)
+catch   = secrets.token_hex(8)
+logtap  = secrets.token_hex(8)
+h_err   = secrets.token_hex(8)
+
+flow = {
+  "id": "my-http-flow", "name": "My HTTP Flow",
+  "node_red_data": {
+    "flows": [
+      {"id": tab,   "type": "tab",                    "label": "Main", "disabled": False, "info": "", "env": []},
+      {"id": "default-native-object-config", "type": "native-object-config", "name": "<tenant-id>"},
+      {"id": h_in,  "type": "http in",                "z": tab, "name": "GET /",       "url": "/",    "method": "get",   "x": 120, "y": 120, "wires": [[fn]]},
+      {"id": fn,    "type": "function",               "z": tab, "name": "Handler",     "func": "// TODO: implement\nreturn msg;", "outputs": 1, "x": 360, "y": 120, "wires": [[h_ok]]},
+      {"id": h_ok,  "type": "http response",          "z": tab, "name": "",            "statusCode": "200",  "x": 560, "y": 120, "wires": []},
+      {"id": catch, "type": "catch",                  "z": tab, "name": "Catch",       "scope": None, "uncaught": True,  "x": 120, "y": 240, "wires": [[logtap]]},
+      {"id": logtap,"type": "log-tap",                "z": tab, "name": "Log Error",   "level": "error", "outputProperty": "", "outputPropertyType": "full", "toConsole": False, "toSideBar": True, "outputs": 1, "x": 340, "y": 240, "wires": [[h_err]]},
+      {"id": h_err, "type": "http response",          "z": tab, "name": "",            "statusCode": "500",  "x": 540, "y": 240, "wires": []}
+    ],
+    "flows_cred": {}
+  }
+}
+with open('/tmp/my-http-flow.jsonl', 'w') as f:
+    f.write(json.dumps(flow) + '\n')
+print('Written')
+# PYEOF
+```
+
+**Event flow** — `contextual-start` → `function` (stub) → `contextual-end` + `catch` → `log-tap` → `contextual-end`:
+Replace `http-in`/`http-response` with `contextual-start`/`contextual-end`. The catch chain terminal is also `contextual-end` (not `http-response`).
+
+**Scheduled flow** — same as event but entry node is `inject` with a cron schedule instead of `contextual-start`.
+
+After creating, resolve the tenant ID via `ctxl config current --json` and tell the user to open the flow at the fully-resolved URL `https://<flow-id>.flow.<resolved-tenant-id>.my.contextual.io/.editor` so refinements can be made interactively through the Flow Editor rather than via CLI string manipulation. Never leave `<tenant-id>` as a literal placeholder for the user to fill in.
+
+### Writing complex flow content
+
+Never inline HTML, JavaScript, or multi-line strings in shell flags — shell expansion will corrupt the content. Always write to a file using a Python heredoc:
+
+```bash
+python3 << 'PYEOF'
+import json
+
+content = """your complex content here"""
+# build and write JSON
+PYEOF
+```
+
+The single-quoted `'PYEOF'` delimiter prevents all shell expansion inside the block.
 
 ## Types
 
@@ -97,6 +165,9 @@ python3 -c "import secrets; print(secrets.token_hex(8))"
 - `ctxl types replace [URI] --type TYPE --input-file FILE`
 
 Aliases: `types create` / `types import` -> `types add`; `types search` -> `types list`
+
+Type input gotchas:
+- `ctxl types add` expects **JSONL** (one JSON object per line) — same as `ctxl records add`. Pretty-printed JSON throws `SyntaxError: Expected property name or '}'` from the local JSONL parser before any HTTP request is issued. Minify with `python3 -c "import json,sys; json.dump(json.load(sys.stdin), sys.stdout)"` or equivalent before passing via `--input-file`.
 
 > `ctxl types list` returns custom object types only. To get the full schema of any type, custom or platform, use `ctxl types get native-object:<type-id>`. This is the authoritative source for enums, patterns, constraints, defaults, and relations.
 
@@ -110,7 +181,6 @@ These built-in types are managed via `ctxl records` commands:
 | `agent` | Agent definitions |
 | `api-configuration` | Connections |
 | `ai-route` | AI routing configuration |
-| `topics` | Topic definitions |
 | `authorization-code-app` | OAuth app config |
 | `jwks-configuration` | JWKS / key config |
 
@@ -229,7 +299,44 @@ Built-in MCP tools exposed by the server:
 
 ## Object Type Schemas
 
-When creating types with `ctxl types add`, follow these conventions:
+### Envelope for `ctxl types add`
+
+`ctxl types add` requires a record envelope that wraps the JSON schema. The schema documents what the data looks like; the envelope tells the platform how to register and display the type. Sending only the inner schema produces a 400 with missing-field errors for `display`, `defaultListStyle`, `objectType`, `features`.
+
+Minimum envelope shape:
+
+```json
+{
+  "id": "<type-id>",
+  "type": "custom",
+  "name": "<display name>",
+  "pluralName": "<plural display name>",
+  "description": "<description>",
+  "display": "default",
+  "defaultListStyle": "table",
+  "objectType": "internal",
+  "features": {
+    "auditTrail": { "enabled": false },
+    "version": { "enabled": false }
+  },
+  "schema": { "...the JSON Schema body — see rules below..." }
+}
+```
+
+Allowed values for the four envelope keys most commonly missed:
+
+| Field | Allowed values | Notes |
+|---|---|---|
+| `display` | `"default"` \| `"pinned"` \| `"setting"` \| `"component"` \| `"security"` | How the type appears in the platform UI list/picker. `"default"` for typical custom types. |
+| `defaultListStyle` | `"table"` \| `"card"` | Default list rendering when browsing records. |
+| `objectType` | `"internal"` (native-object — typical) \| `"external"` (platform-managed external source) | Who owns the data lifecycle. Use `"internal"` unless you specifically need an external-managed type. |
+| `features.auditTrail.enabled` / `features.version.enabled` | boolean (typically `false`) | Feature toggles for audit trail and versioning. |
+
+The `schema` field then carries the JSON Schema described below.
+
+### Inner schema rules
+
+When creating types with `ctxl types add`, follow these conventions for the `schema` field:
 
 - Object type IDs must use only lowercase letters, numbers, and dashes
 - All schemas need a top-level `primaryKey` property naming the primary key field
