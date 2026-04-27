@@ -32,10 +32,17 @@ Record input gotchas:
 Flow records have a required internal structure. Getting this wrong produces a flow record that silently fails to open in the editor with no error message.
 
 **Critical structural rules:**
-- Tab `id` values must be **16-character lowercase hex strings** (e.g. `"aadb6bbe8c6cd017"`). A slug like `"tab1"` looks valid but breaks the editor.
-- Every flow must include a `native-object-config` config node with `"id": "default-native-object-config"`. Its `name` field must be set to the **active config's tenant ID** (run `ctxl config current --json` to confirm).
+- Tab `id` values, when present, must be **16-character lowercase hex strings** (e.g. `"aadb6bbe8c6cd017"`). A slug like `"tab1"` looks valid but breaks the editor.
+- Every flow must include a `native-object-config` config node with `"id": "default-native-object-config"` — that id is the load-bearing reference target for consuming nodes (`query-native-object`, `get-native-object`, etc.).
 - `flows_cred: {}` must be **inside `node_red_data`**, not at the top level.
 - Do **not** include `_metaData` — the platform generates it automatically.
+
+**What's load-bearing vs. convention on `native-object-config`:**
+- `id` and `type` are load-bearing — `id` matches the consumer-side `nativeObjectConfig` reference; `type` makes it a config node.
+- `name` is a **display label**, not a tenant resolver. By convention the dashboard sets it to the active tenant id (e.g. `"speedrun"`); you can do the same. The runtime ignores this field — orgId and tenant are resolved from the request context, not from this field.
+- Empty credential / host fields (`host`, `orgId`, `clientId`, etc.) are **not required**. They're inert — present-as-empty-string and absent are equivalent. Set them only when overriding a default for a non-canonical scenario.
+
+**Tab presence:** the dashboard's "new flow" UI does **not** emit a tab in the persisted record. The editor injects a default `Flow 1` tab on load and only persists it once a tab-touching change is saved. So a tab-less persisted record is valid; the example below includes one for clarity in cases where you're writing programmatically and want a known tab id present from the start.
 
 **Single-tab empty flow** (reference shape, pretty-printed for readability — minify to one line before passing to `ctxl records add`):
 
@@ -158,6 +165,9 @@ The single-quoted `'PYEOF'` delimiter prevents all shell expansion inside the bl
 - `ctxl types replace [URI] --type TYPE --input-file FILE`
 
 Aliases: `types create` / `types import` -> `types add`; `types search` -> `types list`
+
+Type input gotchas:
+- `ctxl types add` expects **JSONL** (one JSON object per line) — same as `ctxl records add`. Pretty-printed JSON throws `SyntaxError: Expected property name or '}'` from the local JSONL parser before any HTTP request is issued. Minify with `python3 -c "import json,sys; json.dump(json.load(sys.stdin), sys.stdout)"` or equivalent before passing via `--input-file`.
 
 > `ctxl types list` returns custom object types only. To get the full schema of any type, custom or platform, use `ctxl types get native-object:<type-id>`. This is the authoritative source for enums, patterns, constraints, defaults, and relations.
 
@@ -289,7 +299,44 @@ Built-in MCP tools exposed by the server:
 
 ## Object Type Schemas
 
-When creating types with `ctxl types add`, follow these conventions:
+### Envelope for `ctxl types add`
+
+`ctxl types add` requires a record envelope that wraps the JSON schema. The schema documents what the data looks like; the envelope tells the platform how to register and display the type. Sending only the inner schema produces a 400 with missing-field errors for `display`, `defaultListStyle`, `objectType`, `features`.
+
+Minimum envelope shape:
+
+```json
+{
+  "id": "<type-id>",
+  "type": "custom",
+  "name": "<display name>",
+  "pluralName": "<plural display name>",
+  "description": "<description>",
+  "display": "default",
+  "defaultListStyle": "table",
+  "objectType": "internal",
+  "features": {
+    "auditTrail": { "enabled": false },
+    "version": { "enabled": false }
+  },
+  "schema": { "...the JSON Schema body — see rules below..." }
+}
+```
+
+Allowed values for the four envelope keys most commonly missed:
+
+| Field | Allowed values | Notes |
+|---|---|---|
+| `display` | `"default"` \| `"pinned"` \| `"setting"` \| `"component"` \| `"security"` | How the type appears in the platform UI list/picker. `"default"` for typical custom types. |
+| `defaultListStyle` | `"table"` \| `"card"` | Default list rendering when browsing records. |
+| `objectType` | `"internal"` (native-object — typical) \| `"external"` (platform-managed external source) | Who owns the data lifecycle. Use `"internal"` unless you specifically need an external-managed type. |
+| `features.auditTrail.enabled` / `features.version.enabled` | boolean (typically `false`) | Feature toggles for audit trail and versioning. |
+
+The `schema` field then carries the JSON Schema described below.
+
+### Inner schema rules
+
+When creating types with `ctxl types add`, follow these conventions for the `schema` field:
 
 - Object type IDs must use only lowercase letters, numbers, and dashes
 - All schemas need a top-level `primaryKey` property naming the primary key field
