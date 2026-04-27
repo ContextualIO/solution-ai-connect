@@ -161,6 +161,8 @@ Cases can be added programmatically via `tray_write` with `action: "add_list_ite
 
 Use these nodes to interact with records stored in the Contextual platform. `function` nodes cannot interact directly with Native Object records.
 
+All Native Object node types reference a single `native-object-config` config node by id (`"nativeObjectConfig": "default-native-object-config"`). The config node itself persists with the minimum shape `{id, type, name}` in the flow record's config-node entries — no `z`, no `x`/`y`, no `wires`. The `id` is load-bearing (it's the reference target); `name` is a display label only. Empty credential/host fields (`host`, `orgId`, `clientId`, `clientSecret`, etc.) are inert — set them only when overriding for a non-canonical scenario. See `cli-reference.md` → "Correct empty flow shape" for full flow-record structure context.
+
 | Node | Purpose |
 |------|---------|
 | `search-native-object` | Array-of-criteria search (`search` + `filters` + `order` arrays, `filterMode: "AND"\|"OR"`). More structural; preferred when the filter is composed from many parts. |

@@ -32,7 +32,7 @@ If those tools are not available, tell the user to run this in their own termina
 ctxl mcp serve --config-id <config-id>
 ```
 
-Read [node-reference.md](node-reference.md) now. Use it as the authoritative node configuration and pattern reference for this session.
+**Read [node-reference.md](node-reference.md) now — this is not optional.** It contains node-specific foot-gun warnings that `type_info` does not surface: e.g. `query-native-object`'s `query: ""` is a guaranteed runtime `JSON.parse("")` throw despite being the registry default (canonical match-all form is `"{}"`); the loop node has three silent setup-gates that fail to a port-0-only firing; `http-response`'s configured `statusCode` silently overrides `msg.statusCode`; Native Object nodes have TypedInput companion-field pairs that runtime Zod-rejects when absent even though `type_info` marks them `required: false`. **`type_info` reports registry defaults; `node-reference.md` warns you when those defaults will throw at runtime.** Skipping it ships silent foot-guns the runtime catches but `type_info` does not.
 
 ## What this MCP server is
 
@@ -87,7 +87,7 @@ Follow these on every task:
 1. Call `list_sessions` if the target flow ID is unknown
 2. Call `editor_state` to confirm the active tab before any write operation
 3. **Generate all node IDs before doing anything else that leads to `import`.** Use `python3 -c "import secrets; print(secrets.token_hex(8))"` via Bash — one call per node needed. An import attempted without a pre-generated ID fails immediately. Do this before `type_info`, before building the payload, before navigate.
-4. Call `type_info` before importing a node type you haven't used in this session. Any field showing `defaultValue: "[Circular]"` in the `propertyMap` is an editable-list array — always set it to `[]` explicitly in the import payload. This is reliable across all node types; `[Circular]` is a JSON serialisation artifact, not a missing value.
+4. Before any `import` or `node_update` of a node type you haven't used in this session: **first** confirm `node-reference.md` has been read this session and consult its entry for this node type (the foot-gun warnings live there, not in `type_info`); **then** call `type_info` to confirm the property shape. Both are needed — `type_info` reports defaults, `node-reference.md` warns when those defaults will throw at runtime. Any field showing `defaultValue: "[Circular]"` in the `propertyMap` is an editable-list array — always set it to `[]` explicitly in the import payload. This is reliable across all node types; `[Circular]` is a JSON serialisation artifact, not a missing value.
 5. Call `navigate` to the target tab before calling `import`
 6. Call `validate` scoped to the affected tab after every batch of changes. Treat the results as follows:
    - **Newly introduced errors** — block completion, fix immediately before continuing
