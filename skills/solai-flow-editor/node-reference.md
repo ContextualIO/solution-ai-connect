@@ -205,6 +205,13 @@ Distinct from `search-native-object` (above). Both query records of an Object Ty
 
 **The canonical "match all records" form (when `queryType: "json"`) is the literal two-character string `"{}"`.** Set this explicitly on import; do not ship the default.
 
+**`includeTotal: true` wraps the result in an envelope.** When `includeTotal: true`, `msg.payload` is no longer the records array — it's `{ "items": [...records], "totalCount": <n> }`. This is a silent foot-gun for any downstream `loop` node with default enumeration (`enumeration: "payload"`, `enumerationType: "msg"`): the loop enumerates the envelope's two keys (`items`, `totalCount`) instead of the records, running exactly twice regardless of record count. `validate` reports nothing; the flow returns 200; the only tell is the wrong per-pass count. To avoid:
+- Target the inner array on the loop: `enumeration: "payload.items"` (with `enumerationType: "msg"`)
+- Or set `includeTotal: false` on the query if you don't need the count
+- Or insert an unwrap function between query and loop: `msg.payload = msg.payload.items; return msg;`
+
+See the Loop node section's silent-failure list for the generic diagnostic recipe.
+
 **Filter syntax** (MongoDB-style query predicates, same as `ctxl records query`):
 
 | Predicate | Form |
@@ -360,6 +367,10 @@ upstream → loop.in
 | `loop-key` | Current key (objects/maps) |
 
 **Silent failure modes to verify against:** missing iterable, empty array, wrong `kind`, missing feedback wire — all produce a clean port-0-only firing with no error, no catch, no warning. After importing or modifying a loop, **explicitly verify port 1 fires the expected number of times** before considering the loop functional.
+
+**Iterating an envelope's keys instead of an array.** A loop downstream of any record source can silently iterate the wrong thing if upstream wrapped its result in an envelope object. The default enumeration (`enumeration: "payload"`, `enumerationType: "msg"`) enumerates an object's keys when given an object — not the array inside. Common case: `query-native-object` with `includeTotal: true` returns `{items: [...], totalCount: <n>}`, so a downstream loop iterates exactly twice (`items`, `totalCount`) regardless of record count. `validate` reports nothing.
+
+**Diagnostic recipe** (generic — applies any time a loop iterates a suspicious number of times after a record source): have the per-pass function log `msg.loop.key` and `Array.isArray(msg.payload)`. If `key` is a string like `items` / `totalCount` / `records`, the loop is enumerating an envelope's keys, not an array. Either target the inner array via `enumeration: "payload.items"` (or whatever the wrapper field is), or insert an unwrap function (`msg.payload = msg.payload.items; return msg;`) between the upstream node and the loop.
 
 **Minimal valid enumeration-loop import payload** (iterating `msg.payload`, item on `msg.payload` per pass):
 
