@@ -14,7 +14,7 @@ Use this as the compact command map for `ctxl`. It tracks the current CLI README
 ## Records
 
 - `ctxl records add [URI] --type TYPE --input-file FILE`
-- `ctxl records get [URI] --type TYPE --id ID`
+- `ctxl records get [URI] --type TYPE --id ID [--version N]` — `--id` may be repeated for multiple records; URI fragment `native-object:TYPE/ID#N` selects a specific version. `--version` is incompatible with multiple `--id`.
 - `ctxl records list [URI] --type TYPE [--search FIELD=VALUE] [--exact-search FIELD=VALUE] [--from FIELD=VALUE] [--to FIELD=VALUE] [--order-by FIELD:desc] [--include-total] [--page-size N] [--page-token TOKEN] [--export] [--progress]`
 - `ctxl records query [URI] --type TYPE --query-file FILE [--order-by FIELD:desc] [--include-total] [--page-size N] [--page-token TOKEN] [--export] [--progress]`
 - `ctxl records patch [URI] --type TYPE --id ID [--set FIELD=VALUE] [--replace FIELD=VALUE] [--remove FIELD] [--add FIELD=VALUE] [--increment FIELD=DELTA]`
@@ -170,6 +170,48 @@ Type input gotchas:
 - `ctxl types add` expects **JSONL** (one JSON object per line) — same as `ctxl records add`. Pretty-printed JSON throws `SyntaxError: Expected property name or '}'` from the local JSONL parser before any HTTP request is issued. Minify with `python3 -c "import json,sys; json.dump(json.load(sys.stdin), sys.stdout)"` or equivalent before passing via `--input-file`.
 
 > `ctxl types list` returns custom object types only. To get the full schema of any type, custom or platform, use `ctxl types get native-object:<type-id>`. This is the authoritative source for enums, patterns, constraints, defaults, and relations.
+
+## Record Versions
+
+When a type has versioning enabled, every write produces a numbered version. These commands operate on that history.
+
+- `ctxl recordversions list [URI] --type TYPE [--id ID] [--order-by FIELD:desc] [--include-total] [--page-size N] [--page-token TOKEN] [--export] [--progress]`
+- `ctxl recordversions diff [URI] VERSIONS [--type TYPE] [--id ID] [--format console|json|jsonpatch] [--no-moves] [--object-keys KEYS]`
+- `ctxl recordversions rollback [URI] --type TYPE --id ID --version N [--do-not-bump]` ⚠️ write — see foot-guns below
+
+Aliases: `rv list`, `recordversions search`, `rv search`; `rv diff`; `rv rollback`.
+
+URI fragment `native-object:TYPE/ID#N` selects a specific version (same syntax as `records get`).
+
+**Version-range syntax for `diff`:**
+
+| Form | Meaning |
+|---|---|
+| `5..7` | explicit range, version 5 vs 7 |
+| `7^` | version 7 vs 6 (one parent) |
+| `7^^^` | version 7 vs 4 (count `^`s) |
+| `7~3` | version 7 vs version 7−3 = 4 |
+
+**`diff` output formats** (`--format`):
+- `console` (default) — colorized human-readable diff
+- `json` — raw `jsondiffpatch` delta
+- `jsonpatch` — RFC 6902 JSON Patch
+
+`diff` exits with code **1 when versions differ**, **0 when identical**. Useful for scripting, but means a non-zero exit is not necessarily an error — check the output.
+
+**`rollback` behavior:**
+- Default — appends a new version at the top with the content of version `N`. Full history preserved; recoverable.
+- `--do-not-bump` — **truncates** every version past `N`. Irreversible. Disallowed in this skill (see bottom).
+
+## Record Audit Trail
+
+The audit trail is the log of user-attributable mutations to records. Distinct from the version history (which stores record content per version) — the audit trail records *who/when/what action*.
+
+- `ctxl recordaudittrail list [URI] --type TYPE [--id ID] [--order-by FIELD:desc] [--include-total] [--page-size N] [--page-token TOKEN] [--export] [--progress]`
+
+Aliases: `ra list`, `recordaudittrail search`, `ra search`.
+
+> **Default ordering differs from `records list` / `types list`.** Both `recordversions list` and `recordaudittrail list` default `--order-by` to `_metaData.createdAt:desc` (newest first). `records list` and `types list` have no default ordering — the server returns its natural order. Pass `--order-by` explicitly when you need a specific order on the latter two.
 
 ## Platform Type IDs
 
@@ -383,3 +425,4 @@ For non-prod silos, insert the silo name: `{tenantId}.my.{silo}.contextual.io`.
 - `ctxl config delete`
 - `ctxl records delete`, `ctxl records remove`, `ctxl records rm`
 - `ctxl types delete`, `ctxl types remove`, `ctxl types rm`
+- `ctxl recordversions rollback --do-not-bump` (and the `rv rollback --do-not-bump` alias) — irreversibly truncates version history past the target. Plain `rollback` without this flag is allowed (history is preserved and the operation is recoverable).
