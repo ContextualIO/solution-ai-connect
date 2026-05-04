@@ -149,6 +149,7 @@ echo "working-private/" >> .git/info/exclude
 ## Notes
 
 - `solai-knowledge` is the bundled docs-grounding skill and uses the `solai-knowledge-mcp` connector.
+- `solai-knowledge-mcp` now performs OAuth discovery from the server itself, so the bundled `.mcp.json` entry stays URL-only even though first use requires sign-in.
 - `solai-cli` requires a runtime with local shell access such as Claude Code, Claude Cowork, OpenCode, or Codex.
 - `solai-cli` expects `ctxl` to already be installed and available on the machine.
 - `solai-flow-editor` requires the `ctxl mcp serve` server to be running. The skill connects to it — it does not start it. The server can be run manually in a persistent terminal (`ctxl mcp serve --config-id <config-id>`) or managed by the **Ctxl Tool** desktop app, which handles the lifecycle for you.

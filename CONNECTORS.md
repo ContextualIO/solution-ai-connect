@@ -2,9 +2,11 @@
 
 ## Solution AI Knowledge
 
-`https://contextual-docs-mcp.contextualio.workers.dev` (remote, always available)
+`https://contextual-docs-mcp.contextualio.workers.dev` (remote, first use now requires OAuth sign-in)
 
 Tools: `search`, `list_paths`, `list_headings`, `read_chunk_context`, `read_section`, `read_page`, `list_versions`
+
+The bundled connector still uses the same URL-only `.mcp.json` entry. MCP clients that support OAuth discovery should handle the `401` challenge and complete sign-in without additional connector fields.
 
 ## ctxl-flow-editor
 
