@@ -16,10 +16,15 @@ Tracks `@contextual-io/cli@0.10.0`. CLI reference picks up the new `recordversio
 - New **`## Record Audit Trail`** section covering `recordaudittrail list` (and the `ra …` aliases), framed against the version history so the two are not confused.
 - New cross-cutting note on **default ordering asymmetry**: `recordversions list` and `recordaudittrail list` default to `_metaData.createdAt:desc`; `records list` and `types list` have no default ordering.
 - `records get` synopsis updated to document the new `--version N` flag and the `native-object:TYPE/ID#N` URI fragment, including the rule that `--version` is incompatible with multiple `--id`.
+- New **"Handling large diffs"** subsection under Record Versions: `--format jsonpatch` + summarization recipe, `--no-moves` for layout-noise suppression, and the redirect-to-file-then-Read pattern for full human review without inflating the shell-output preview path.
 
 ### Changed
 
 - **Disallowed In This Skill** list extended with `ctxl recordversions rollback --do-not-bump` (and the `rv rollback --do-not-bump` alias). Plain `rollback` without the flag remains allowed because version history is preserved and the operation is recoverable; only the history-truncating variant is destructive.
+
+### Fixed
+
+- `recordversions diff` synopsis corrected to **URI form only**. Earlier draft suggested `[--type TYPE] [--id ID]` was interchangeable with the URI argument as it is for `list` and `rollback`; in fact `diff` takes `VERSIONS` as a second positional, and oclif cannot skip the first positional, so flag-only invocation always misroutes the version range into the URI slot and fails URI-regex validation. Confirmed via clean-context test session.
 
 ## [0.7.1] — 2026-04-27
 

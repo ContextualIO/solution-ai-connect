@@ -176,12 +176,14 @@ Type input gotchas:
 When a type has versioning enabled, every write produces a numbered version. These commands operate on that history.
 
 - `ctxl recordversions list [URI] --type TYPE [--id ID] [--order-by FIELD:desc] [--include-total] [--page-size N] [--page-token TOKEN] [--export] [--progress]`
-- `ctxl recordversions diff [URI] VERSIONS [--type TYPE] [--id ID] [--format console|json|jsonpatch] [--no-moves] [--object-keys KEYS]`
+- `ctxl recordversions diff URI VERSIONS [--format console|json|jsonpatch] [--no-moves] [--object-keys KEYS]` — **URI form only** (see note)
 - `ctxl recordversions rollback [URI] --type TYPE --id ID --version N [--do-not-bump]` ⚠️ write — see foot-guns below
 
 Aliases: `rv list`, `recordversions search`, `rv search`; `rv diff`; `rv rollback`.
 
 URI fragment `native-object:TYPE/ID#N` selects a specific version (same syntax as `records get`).
+
+> **`diff` requires the URI form.** Unlike `list` and `rollback`, `diff` takes `VERSIONS` as a second positional argument — and oclif cannot skip the first positional. Passing `--type FOO --id BAR 4..7` makes oclif assign `4..7` to the URI slot, which fails URI-regex validation. Always invoke as `ctxl recordversions diff native-object:TYPE/ID 4..7`.
 
 **Version-range syntax for `diff`:**
 
@@ -198,6 +200,22 @@ URI fragment `native-object:TYPE/ID#N` selects a specific version (same syntax a
 - `jsonpatch` — RFC 6902 JSON Patch
 
 `diff` exits with code **1 when versions differ**, **0 when identical**. Useful for scripting, but means a non-zero exit is not necessarily an error — check the output.
+
+**Handling large diffs.** Flow records routinely produce 30KB+ console diffs once you cross more than a handful of node moves. The default `console` format is meant for human eyes; piping it back into the model is wasteful. Three patterns, in order of preference:
+
+1. **Summarize via `--format jsonpatch`.** Pipe through `jq` or Python to count operations by type and surface representative paths — far more useful than a wall of text:
+   ```bash
+   ctxl recordversions diff native-object:flow/my-flow 4..7 --format jsonpatch \
+     | python3 -c "import json,sys; p=json.load(sys.stdin); ops={}
+   [ops.setdefault(o['op'],[]).append(o['path']) for o in p]
+   for k,v in ops.items(): print(f'{k}: {len(v)}'); [print(f'  {x}') for x in v[:5]]"
+   ```
+2. **Suppress array-move noise** with `--no-moves` when reordered nodes (common in flows after a layout shuffle) are dominating the diff and you want only structural changes.
+3. **Redirect raw diff to a file** when full human review is needed, then read it via the `Read` tool rather than letting it inflate the shell output preview:
+   ```bash
+   ctxl recordversions diff native-object:flow/my-flow 4..7 > /tmp/flow-diff.txt
+   ```
+   This keeps the large payload out of the shell-output truncation path and into the file-read path, which has its own (typically larger) allowance.
 
 **`rollback` behavior:**
 - Default — appends a new version at the top with the content of version `N`. Full history preserved; recoverable.
