@@ -17,6 +17,7 @@ Tracks `@contextual-io/cli@0.10.0`. CLI reference picks up the new `recordversio
 - New cross-cutting note on **default ordering asymmetry**: `recordversions list` and `recordaudittrail list` default to `_metaData.createdAt:desc`; `records list` and `types list` have no default ordering.
 - `records get` synopsis updated to document the new `--version N` flag and the `native-object:TYPE/ID#N` URI fragment, including the rule that `--version` is incompatible with multiple `--id`.
 - New **"Handling large diffs"** subsection under Record Versions: `--format jsonpatch` + summarization recipe, `--no-moves` for layout-noise suppression, and the redirect-to-file-then-Read pattern for full human review without inflating the shell-output preview path.
+- New **"Counting without pulling bodies"** cross-cutting callout: `--include-total --page-size 1` on any `list` command returns `totalCount` in one round-trip. Documents the **`--page-size 0` server-ignore foot-gun** (CLI accepts it; server falls back to default page ~25), and the residual cost on `recordversions list` (single returned body is the full per-version record content). Empirically verified against a flow with 38 versions.
 
 ### Changed
 

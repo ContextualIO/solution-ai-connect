@@ -231,6 +231,8 @@ Aliases: `ra list`, `recordaudittrail search`, `ra search`.
 
 > **Default ordering differs from `records list` / `types list`.** Both `recordversions list` and `recordaudittrail list` default `--order-by` to `_metaData.createdAt:desc` (newest first). `records list` and `types list` have no default ordering — the server returns its natural order. Pass `--order-by` explicitly when you need a specific order on the latter two.
 
+> **Counting without pulling bodies.** Pair `--include-total --page-size 1` on any `list` command (`records list`, `types list`, `recordversions list`, `recordaudittrail list`) to get a `totalCount` in one round-trip. The CLI accepts `--page-size 0` but **the server silently ignores it** and falls back to its default page (~25 items) — always use `1`, not `0`. Caveat for `recordversions list`: the single returned body is still the full record content per version (for flows that's the entire `node_red_data`, typically 50–100KB). Significant saving over pulling all versions; not zero-cost. Empirically verified against a flow with 38 versions: 1.8MB at `--page-size 0` (server-ignored) → 90KB at `--page-size 1` → both report `totalCount: 38` correctly.
+
 ## Platform Type IDs
 
 These built-in types are managed via `ctxl records` commands:
