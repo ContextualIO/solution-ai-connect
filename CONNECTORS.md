@@ -6,7 +6,7 @@
 
 Tools: `search`, `list_paths`, `list_headings`, `read_chunk_context`, `read_section`, `read_page`, `list_versions`
 
-The bundled connector still uses the same URL-only `.mcp.json` entry. MCP clients that support OAuth discovery should handle the `401` challenge and complete sign-in without additional connector fields.
+The bundled connector still uses the same URL-only `.mcp.json` entry. MCP clients that support OAuth discovery should handle the `401` challenge, then continue through the Stytch Connected Apps flow exposed by the remote MCP server.
 
 ## ctxl-flow-editor
 
