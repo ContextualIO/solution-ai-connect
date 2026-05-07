@@ -211,11 +211,12 @@ URI fragment `native-object:TYPE/ID#N` selects a specific version (same syntax a
    for k,v in ops.items(): print(f'{k}: {len(v)}'); [print(f'  {x}') for x in v[:5]]"
    ```
 2. **Suppress array-move noise** with `--no-moves` when reordered nodes (common in flows after a layout shuffle) are dominating the diff and you want only structural changes.
-3. **Redirect raw diff to a file** when full human review is needed, then read it via the `Read` tool rather than letting it inflate the shell output preview:
+3. **Redirect raw diff to a file, then slice with `grep`/`awk`/`jq`** when full review or targeted inspection is needed:
    ```bash
    ctxl recordversions diff native-object:flow/my-flow 4..7 > /tmp/flow-diff.txt
+   grep -n "<node-id-of-interest>" /tmp/flow-diff.txt
    ```
-   This keeps the large payload out of the shell-output truncation path and into the file-read path, which has its own (typically larger) allowance.
+   Don't reach for the `Read` tool here — its default cap (~25K tokens) matches MCP output (not larger), and it tokenizes the **whole file** before applying offset/limit, so very large diffs are refused outright regardless of the slice you ask for. Shell tools are the way through.
 
 **`rollback` behavior:**
 - Default — appends a new version at the top with the content of version `N`. Full history preserved; recoverable.
