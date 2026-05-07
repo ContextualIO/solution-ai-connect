@@ -197,6 +197,30 @@ Common TypedInput pairs on Native Object nodes:
 | `typeId` | `typeIdType` | `notype` (default, typical) → literal type id; `msg`/`str`/etc. for indirected lookup |
 | `pageSize` | `pageSizeType` | `num` (typical) → numeric literal; `msg`/`str`/etc. for indirected lookup |
 
+### Reserved `msg` keys override Native Object node configuration
+
+If any of the following keys are set on `msg` upstream in a flow, every downstream Native Object node with a property of the same name will use the upstream value **instead of its own configured value**. The node does not log that an override occurred and the editor shows no visual indicator. The only diagnostic is to place a `log-tap` upstream of the node and check whether a reserved key is unexpectedly present on `msg`.
+
+To avoid these silent obverrides on Native Object nodes, **do not store application data on these top-level `msg` keys.** Use `msg.payload.*` or any other nested path instead. All reserved keys are top-level properties on `msg`. Nested paths like `msg.payload.typeId` are not affected.
+
+| Key | Paired type key | Native Object nodes with this property |
+|---|---|---|
+| `typeId` | `typeIdType` | all Native Object nodes |
+| `objectId` | `objectIdType` | `get-native-object`, `patch-native-object`, `put-native-object`, `delete-native-object`, `execute-native-object` |
+| `property` | `propertyType` | `create-native-object`, `patch-native-object`, `put-native-object`, `execute-native-object`, `import-native-objects` |
+| `outputProperty` | — | `create-native-object`, `get-native-object`, `patch-native-object`, `put-native-object`, `execute-native-object`, `query-native-object`, `search-native-object`, `import-native-objects` |
+| `responseProperty` | — | `create-native-object`, `get-native-object`, `patch-native-object`, `put-native-object`, `delete-native-object`, `execute-native-object`, `query-native-object`, `search-native-object`, `import-native-objects` |
+| `actionId` | `actionIdType` | `execute-native-object` |
+| `query` | `queryType` | `query-native-object` |
+| `search` | — | `search-native-object` |
+| `filters` | — | `search-native-object` |
+| `filterMode` | — | `search-native-object` |
+| `pageSize` | `pageSizeType` | `query-native-object`, `search-native-object` |
+| `pageToken` | — | `query-native-object`, `search-native-object` |
+| `order` | — | `query-native-object`, `search-native-object` |
+| `fields` | — | `query-native-object`, `search-native-object` |
+| `includeTotal` | — | `query-native-object`, `search-native-object` |
+
 ### `query-native-object` (Query Object node)
 
 Distinct from `search-native-object` (above). Both query records of an Object Type, but with different filter models — see the row notes above. Pick `query-native-object` for direct MongoDB-style filter expressions; pick `search-native-object` when the filter is composed from many parts or relevance scoring matters.
