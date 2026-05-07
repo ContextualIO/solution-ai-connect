@@ -2,7 +2,7 @@
 
 ## Solution AI Knowledge
 
-`https://contextual-docs-mcp.contextualio.workers.dev` (remote, first use now requires OAuth sign-in)
+`https://contextual-docs-mcp.contextualio.workers.dev` (remote, OAuth-protected)
 
 Tools: `search`, `list_paths`, `list_headings`, `read_chunk_context`, `read_section`, `read_page`, `list_versions`
 
