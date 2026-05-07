@@ -6,7 +6,7 @@
 
 Tools: `search`, `list_paths`, `list_headings`, `read_chunk_context`, `read_section`, `read_page`, `list_versions`
 
-The bundled connector still uses the same URL-only `.mcp.json` entry. MCP clients that support OAuth discovery should handle the `401` challenge, then continue through the Stytch Connected Apps flow exposed by the remote MCP server.
+The bundled `.mcp.json` entry is URL-only. The server returns `401` on unauthenticated requests; MCP clients with OAuth discovery handle the challenge and complete sign-in via the server's OAuth flow (provided by Stytch). Clients without OAuth discovery cannot connect.
 
 ## ctxl-flow-editor
 
