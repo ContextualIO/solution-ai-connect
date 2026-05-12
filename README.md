@@ -82,7 +82,7 @@ Example prompts:
 
 ### Claude Cowork and Chat (Claude Desktop app)
 
-These surfaces are **provisioned at the org level** for Contextual users — no install action is needed from you. The plugin's **core capabilities** are available in your Cowork and Chat sessions. Capabilities that depend on local resources — notably live flow editing (which requires a `ctxl mcp serve` MCP server on your machine) — only work in Claude Code (CLI, VS Code extension, or Desktop app).
+Where this plugin has been **provisioned at the org level**, its **core capabilities** are available in Cowork and Chat sessions with no per-user install needed. Capabilities that depend on local resources — notably live flow editing (which requires a `ctxl mcp serve` MCP server on your machine) — only work in Claude Code (CLI, VS Code extension, or Desktop app).
 
 ### Claude Code in the Claude Desktop app
 
