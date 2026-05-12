@@ -61,7 +61,7 @@ This is a proprietary platform. Do not apply assumptions from public knowledge o
 2. **`node-reference.md` and this `SKILL.md`** — kept current with empirically-verified build-time reality via ongoing verification against the live platform; canonical for node-level behavior, authoring patterns, and sequencing rules
 3. **`solai-knowledge`** — for platform/runtime behavior not in (1) or (2)
 
-For genuinely cross-cutting queries, run multiple sources in parallel — the answers are complementary. Precedence may shift as `solai-knowledge` matures.
+For genuinely cross-cutting queries, run multiple sources in parallel — the answers are complementary.
 
 ## Available tools (by category)
 
