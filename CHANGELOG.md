@@ -6,7 +6,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [0.7.2] — 2026-05-04
 
-Tracks `@contextual-io/cli@0.10.0`. CLI reference picks up the new `recordversions` topic, the new `recordaudittrail list` command, and the extended `records get --version` / `#N` URI fragment.
+Tracks `@contextual-io/cli@0.10.0`. CLI reference picks up the new `recordversions` topic, the new `recordaudittrail list` command, and the extended `records get --version` / `#N` URI fragment. Flow editor reference also picks up a new **Reserved `msg` keys** subsection for Native Object nodes, addressing a class of silent-override foot-guns observed in BYOS SAI authoring.
 
 ### Added
 
@@ -18,6 +18,11 @@ Tracks `@contextual-io/cli@0.10.0`. CLI reference picks up the new `recordversio
 - `records get` synopsis updated to document the new `--version N` flag and the `native-object:TYPE/ID#N` URI fragment, including the rule that `--version` is incompatible with multiple `--id`.
 - New **"Handling large diffs"** subsection under Record Versions: `--format jsonpatch` + summarization recipe, `--no-moves` for layout-noise suppression, and the redirect-to-file-then-Read pattern for full human review without inflating the shell-output preview path.
 - New **"Counting without pulling bodies"** cross-cutting callout: `--include-total --page-size 1` on any `list` command returns `totalCount` in one round-trip. Documents the **`--page-size 0` server-ignore foot-gun** (CLI accepts it; server falls back to default page ~25), and the residual cost on `recordversions list` (single returned body is the full per-version record content). Empirically verified against a flow with 38 versions.
+
+#### `skills/solai-flow-editor/`
+
+- New **"Reserved `msg` keys"** subsection under Native Object nodes in `node-reference.md` documenting **15 reserved `msg` properties** (`objectId`, `typeId`, `query`, `search`, `filters`, `filterMode`, etc.) that **silently override** a node's configured value when set upstream — no runtime warning, no validation error. Addresses a class of foot-guns where SAI-authored function nodes write to `msg.objectId` / `msg.typeId` / `msg.query` and downstream Native Object node configuration is silently bypassed.
+- `SKILL.md` updated with an explicit authoring-time callout for reserved `msg` keys on Native Objects, reinforcing the `node-reference.md` content at the skill-orchestration layer. Spot-check eval across six prompts (main vs. reference-only vs. reference + skill) showed a 3/6 → 4/6 → 5/6 pass rate, confirming the skill-level reinforcement carries weight beyond the reference doc alone.
 
 ### Changed
 
