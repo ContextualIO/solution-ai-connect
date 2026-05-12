@@ -9,7 +9,7 @@ Use this skill for product and platform questions where doc-backed answers are s
 
 ## Precedence
 
-**Plugin-side reference content is the first stop** for CLI shapes, node-level behavior, and authoring patterns. Those references (`cli-reference.md`, `node-reference.md`, the relevant `SKILL.md`) are kept current via empirical verification through the BYOS pioneer feedback cycle, and they often have answers this skill's docs do not. **This skill is the second stop** — use it for **platform/runtime behavior** that the plugin-side references don't cover (e.g. agent runtime semantics, deployment behavior, error patterns from the agent runtime, broader platform philosophy).
+**Plugin-side reference content is the first stop** for CLI shapes, node-level behavior, and authoring patterns. Those references (`cli-reference.md`, `node-reference.md`, the relevant `SKILL.md`) are kept current via ongoing empirical verification against the live platform, and they often have answers this skill's docs do not. **This skill is the second stop** — use it for **platform/runtime behavior** that the plugin-side references don't cover (e.g. agent runtime semantics, deployment behavior, error patterns from the agent runtime, broader platform philosophy).
 
 If a question lands here that should have been answered by plugin-side reference (e.g. *"what's the minimum X shape?"*, *"how do I configure node Y?"*, *"what are the foot-guns on Z?"*), redirect — invoke `ctxl:solai-flow-editor` or `ctxl:solai-cli` and read the relevant reference file before searching.
 

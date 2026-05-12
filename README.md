@@ -140,10 +140,10 @@ Bump `.claude-plugin/plugin.json` version on every meaningful content change. Pr
 
 ## Contributing
 
-For local working files (scratch notes, retro plans, unvetted drafts) that should not be committed, add them to `.git/info/exclude` rather than `.gitignore`. This keeps personal ignore rules off the shared list:
+For local working files (scratch notes, drafts, personal experiments) that should not be committed, add them to `.git/info/exclude` rather than `.gitignore`. This keeps personal ignore rules off the shared list:
 
 ```
-echo "working-private/" >> .git/info/exclude
+echo "private-notes/" >> .git/info/exclude
 ```
 
 ## Notes
