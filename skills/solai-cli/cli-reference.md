@@ -14,7 +14,7 @@ Use this as the compact command map for `ctxl`. It tracks the current CLI README
 ## Records
 
 - `ctxl records add [URI] --type TYPE --input-file FILE`
-- `ctxl records get [URI] --type TYPE --id ID`
+- `ctxl records get [URI] --type TYPE --id ID [--version N]` — `--id` may be repeated for multiple records; URI fragment `native-object:TYPE/ID#N` selects a specific version. `--version` is incompatible with multiple `--id`.
 - `ctxl records list [URI] --type TYPE [--search FIELD=VALUE] [--exact-search FIELD=VALUE] [--from FIELD=VALUE] [--to FIELD=VALUE] [--order-by FIELD:desc] [--include-total] [--page-size N] [--page-token TOKEN] [--export] [--progress]`
 - `ctxl records query [URI] --type TYPE --query-file FILE [--order-by FIELD:desc] [--include-total] [--page-size N] [--page-token TOKEN] [--export] [--progress]`
 - `ctxl records patch [URI] --type TYPE --id ID [--set FIELD=VALUE] [--replace FIELD=VALUE] [--remove FIELD] [--add FIELD=VALUE] [--increment FIELD=DELTA]`
@@ -170,6 +170,69 @@ Type input gotchas:
 - `ctxl types add` expects **JSONL** (one JSON object per line) — same as `ctxl records add`. Pretty-printed JSON throws `SyntaxError: Expected property name or '}'` from the local JSONL parser before any HTTP request is issued. Minify with `python3 -c "import json,sys; json.dump(json.load(sys.stdin), sys.stdout)"` or equivalent before passing via `--input-file`.
 
 > `ctxl types list` returns custom object types only. To get the full schema of any type, custom or platform, use `ctxl types get native-object:<type-id>`. This is the authoritative source for enums, patterns, constraints, defaults, and relations.
+
+## Record Versions
+
+When a type has versioning enabled, every write produces a numbered version. These commands operate on that history.
+
+- `ctxl recordversions list [URI] --type TYPE [--id ID] [--order-by FIELD:desc] [--include-total] [--page-size N] [--page-token TOKEN] [--export] [--progress]`
+- `ctxl recordversions diff URI VERSIONS [--format console|json|jsonpatch] [--no-moves] [--object-keys KEYS]` — **URI form only** (see note)
+- `ctxl recordversions rollback [URI] --type TYPE --id ID --version N [--do-not-bump]` ⚠️ write — see foot-guns below
+
+Aliases: `rv list`, `recordversions search`, `rv search`; `rv diff`; `rv rollback`.
+
+URI fragment `native-object:TYPE/ID#N` selects a specific version (same syntax as `records get`).
+
+> **`diff` requires the URI form.** Unlike `list` and `rollback`, `diff` takes `VERSIONS` as a second positional argument — and oclif cannot skip the first positional. Passing `--type FOO --id BAR 4..7` makes oclif assign `4..7` to the URI slot, which fails URI-regex validation. Always invoke as `ctxl recordversions diff native-object:TYPE/ID 4..7`.
+
+**Version-range syntax for `diff`:**
+
+| Form | Meaning |
+|---|---|
+| `5..7` | explicit range, version 5 vs 7 |
+| `7^` | version 7 vs 6 (one parent) |
+| `7^^^` | version 7 vs 4 (count `^`s) |
+| `7~3` | version 7 vs version 7−3 = 4 |
+
+**`diff` output formats** (`--format`):
+- `console` (default) — colorized human-readable diff
+- `json` — raw `jsondiffpatch` delta
+- `jsonpatch` — RFC 6902 JSON Patch
+
+`diff` exits with code **1 when versions differ**, **0 when identical**. Useful for scripting, but means a non-zero exit is not necessarily an error — check the output.
+
+**Handling large diffs.** Flow records routinely produce 30KB+ console diffs once you cross more than a handful of node moves. The default `console` format is meant for human eyes; piping it back into the model is wasteful. Three patterns, in order of preference:
+
+1. **Summarize via `--format jsonpatch`.** Pipe through `jq` or Python to count operations by type and surface representative paths — far more useful than a wall of text:
+   ```bash
+   ctxl recordversions diff native-object:flow/my-flow 4..7 --format jsonpatch \
+     | python3 -c "import json,sys; p=json.load(sys.stdin); ops={}
+   [ops.setdefault(o['op'],[]).append(o['path']) for o in p]
+   for k,v in ops.items(): print(f'{k}: {len(v)}'); [print(f'  {x}') for x in v[:5]]"
+   ```
+2. **Suppress array-move noise** with `--no-moves` when reordered nodes (common in flows after a layout shuffle) are dominating the diff and you want only structural changes.
+3. **Redirect raw diff to a file, then slice with `grep`/`awk`/`jq`** when full review or targeted inspection is needed:
+   ```bash
+   ctxl recordversions diff native-object:flow/my-flow 4..7 > /tmp/flow-diff.txt
+   grep -n "<node-id-of-interest>" /tmp/flow-diff.txt
+   ```
+   Don't reach for the `Read` tool here — its default cap (~25K tokens) matches MCP output (not larger), and it tokenizes the **whole file** before applying offset/limit, so very large diffs are refused outright regardless of the slice you ask for. Shell tools are the way through.
+
+**`rollback` behavior:**
+- Default — appends a new version at the top with the content of version `N`. Full history preserved; recoverable.
+- `--do-not-bump` — **truncates** every version past `N`. Irreversible. Disallowed in this skill (see bottom).
+
+## Record Audit Trail
+
+The audit trail is the log of user-attributable mutations to records. Distinct from the version history (which stores record content per version) — the audit trail records *who/when/what action*.
+
+- `ctxl recordaudittrail list [URI] --type TYPE [--id ID] [--order-by FIELD:desc] [--include-total] [--page-size N] [--page-token TOKEN] [--export] [--progress]`
+
+Aliases: `ra list`, `recordaudittrail search`, `ra search`.
+
+> **Default ordering differs from `records list` / `types list`.** Both `recordversions list` and `recordaudittrail list` default `--order-by` to `_metaData.createdAt:desc` (newest first). `records list` and `types list` have no default ordering — the server returns its natural order. Pass `--order-by` explicitly when you need a specific order on the latter two.
+
+> **Counting without pulling bodies.** Pair `--include-total --page-size 1` on any `list` command (`records list`, `types list`, `recordversions list`, `recordaudittrail list`) to get a `totalCount` in one round-trip. The CLI accepts `--page-size 0` but **the server silently ignores it** and falls back to its default page (~25 items) — always use `1`, not `0`. Caveat for `recordversions list`: the single returned body is still the full record content per version (for flows that's the entire `node_red_data`, typically 50–100KB). Significant saving over pulling all versions; not zero-cost. Empirically verified against a flow with 38 versions: 1.8MB at `--page-size 0` (server-ignored) → 90KB at `--page-size 1` → both report `totalCount: 38` correctly.
 
 ## Platform Type IDs
 
@@ -383,3 +446,4 @@ For non-prod silos, insert the silo name: `{tenantId}.my.{silo}.contextual.io`.
 - `ctxl config delete`
 - `ctxl records delete`, `ctxl records remove`, `ctxl records rm`
 - `ctxl types delete`, `ctxl types remove`, `ctxl types rm`
+- `ctxl recordversions rollback --do-not-bump` (and the `rv rollback --do-not-bump` alias) — irreversibly truncates version history past the target. Plain `rollback` without this flag is allowed (history is preserved and the operation is recoverable).

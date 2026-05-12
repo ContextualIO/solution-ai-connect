@@ -4,6 +4,29 @@ All notable changes to the Solution AI Connect plugin are documented in this fil
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.2] — 2026-05-04
+
+Tracks `@contextual-io/cli@0.10.0`. CLI reference picks up the new `recordversions` topic, the new `recordaudittrail list` command, and the extended `records get --version` / `#N` URI fragment.
+
+### Added
+
+#### `skills/solai-cli/cli-reference.md`
+
+- New **`## Record Versions`** section covering `recordversions list`, `recordversions diff`, `recordversions rollback` (and their `rv …` aliases). Documents the `diff` version-range mini-grammar (`5..7`, `7^`, `7^^^`, `7~3`), the three `--format` options (`console` / `json` / `jsonpatch`), and the *non-obvious* `diff` exit-code semantics (1 when versions differ, 0 when identical).
+- New **`## Record Audit Trail`** section covering `recordaudittrail list` (and the `ra …` aliases), framed against the version history so the two are not confused.
+- New cross-cutting note on **default ordering asymmetry**: `recordversions list` and `recordaudittrail list` default to `_metaData.createdAt:desc`; `records list` and `types list` have no default ordering.
+- `records get` synopsis updated to document the new `--version N` flag and the `native-object:TYPE/ID#N` URI fragment, including the rule that `--version` is incompatible with multiple `--id`.
+- New **"Handling large diffs"** subsection under Record Versions: `--format jsonpatch` + summarization recipe, `--no-moves` for layout-noise suppression, and the redirect-to-file-then-Read pattern for full human review without inflating the shell-output preview path.
+- New **"Counting without pulling bodies"** cross-cutting callout: `--include-total --page-size 1` on any `list` command returns `totalCount` in one round-trip. Documents the **`--page-size 0` server-ignore foot-gun** (CLI accepts it; server falls back to default page ~25), and the residual cost on `recordversions list` (single returned body is the full per-version record content). Empirically verified against a flow with 38 versions.
+
+### Changed
+
+- **Disallowed In This Skill** list extended with `ctxl recordversions rollback --do-not-bump` (and the `rv rollback --do-not-bump` alias). Plain `rollback` without the flag remains allowed because version history is preserved and the operation is recoverable; only the history-truncating variant is destructive.
+
+### Fixed
+
+- `recordversions diff` synopsis corrected to **URI form only**. Earlier draft suggested `[--type TYPE] [--id ID]` was interchangeable with the URI argument as it is for `list` and `rollback`; in fact `diff` takes `VERSIONS` as a second positional, and oclif cannot skip the first positional, so flag-only invocation always misroutes the version range into the URI slot and fails URI-regex validation. Confirmed via clean-context test session.
+
 ## [0.7.1] — 2026-04-27
 
 The first comprehensive release of the plugin since establishing the BYOS pioneer feedback cycle. This release lands a substantial body of pioneer-fed reference content alongside foundational restructuring of the plugin's skills and agents. Reporters whose findings shipped in this release: **Marcelo Lopes**, **Angela Woods**, **James Stolp**, **Kevin OBryan**.
