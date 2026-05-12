@@ -39,7 +39,7 @@ Flow records have a required internal structure. Getting this wrong produces a f
 
 **What's load-bearing vs. convention on `native-object-config`:**
 - `id` and `type` are load-bearing — `id` matches the consumer-side `nativeObjectConfig` reference; `type` makes it a config node.
-- `name` is a **display label**, not a tenant resolver. By convention the dashboard sets it to the active tenant id (e.g. `"speedrun"`); you can do the same. The runtime ignores this field — orgId and tenant are resolved from the request context, not from this field.
+- `name` is a **display label**, not a tenant resolver. By convention the dashboard sets it to the active tenant id (e.g. `"my-tenant"`); you can do the same. The runtime ignores this field — orgId and tenant are resolved from the request context, not from this field.
 - Empty credential / host fields (`host`, `orgId`, `clientId`, etc.) are **not required**. They're inert — present-as-empty-string and absent are equivalent. Set them only when overriding a default for a non-canonical scenario.
 
 **Tab presence:** the dashboard's "new flow" UI does **not** emit a tab in the persisted record. The editor injects a default `Flow 1` tab on load and only persists it once a tab-touching change is saved. So a tab-less persisted record is valid; the example below includes one for clarity in cases where you're writing programmatically and want a known tab id present from the start.

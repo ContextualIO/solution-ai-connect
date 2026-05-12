@@ -58,10 +58,10 @@ Use these terms consistently. Never use internal engine terminology.
 This is a proprietary platform. Do not apply assumptions from public knowledge of other flow-based tools. Source-of-truth precedence when uncertain about node behaviour or platform conventions:
 
 1. **`type_info`** (if a live session is active) — the connected editor's authoritative definition for the specific node type
-2. **`node-reference.md` and this `SKILL.md`** — kept current with empirically-verified build-time reality via the BYOS pioneer feedback cycle; canonical for node-level behavior, authoring patterns, and sequencing rules
+2. **`node-reference.md` and this `SKILL.md`** — kept current with empirically-verified build-time reality via ongoing verification against the live platform; canonical for node-level behavior, authoring patterns, and sequencing rules
 3. **`solai-knowledge`** — for platform/runtime behavior not in (1) or (2)
 
-For genuinely cross-cutting queries, run multiple sources in parallel — the answers are complementary. Precedence may shift as `solai-knowledge` matures.
+For genuinely cross-cutting queries, run multiple sources in parallel — the answers are complementary.
 
 ## Available tools (by category)
 

@@ -4,9 +4,9 @@ All notable changes to the Solution AI Connect plugin are documented in this fil
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.7.2] — 2026-05-04
+## [0.7.2] — 2026-05-12
 
-Tracks `@contextual-io/cli@0.10.0`. CLI reference picks up the new `recordversions` topic, the new `recordaudittrail list` command, and the extended `records get --version` / `#N` URI fragment.
+Tracks `@contextual-io/cli@0.10.0`. CLI reference picks up the new `recordversions` topic, the new `recordaudittrail list` command, and the extended `records get --version` / `#N` URI fragment. Flow editor reference also picks up a new **Reserved `msg` keys** subsection for Native Object nodes, addressing a class of silent-override foot-guns observed when AI agents author flows.
 
 ### Added
 
@@ -19,6 +19,11 @@ Tracks `@contextual-io/cli@0.10.0`. CLI reference picks up the new `recordversio
 - New **"Handling large diffs"** subsection under Record Versions: `--format jsonpatch` + summarization recipe, `--no-moves` for layout-noise suppression, and the redirect-to-file-then-Read pattern for full human review without inflating the shell-output preview path.
 - New **"Counting without pulling bodies"** cross-cutting callout: `--include-total --page-size 1` on any `list` command returns `totalCount` in one round-trip. Documents the **`--page-size 0` server-ignore foot-gun** (CLI accepts it; server falls back to default page ~25), and the residual cost on `recordversions list` (single returned body is the full per-version record content). Empirically verified against a flow with 38 versions.
 
+#### `skills/solai-flow-editor/`
+
+- New **"Reserved `msg` keys"** subsection under Native Object nodes in `node-reference.md` documenting **15 reserved `msg` properties** (`objectId`, `typeId`, `query`, `search`, `filters`, `filterMode`, etc.) that **silently override** a node's configured value when set upstream — no runtime warning, no validation error. Addresses a class of foot-guns where SAI-authored function nodes write to `msg.objectId` / `msg.typeId` / `msg.query` and downstream Native Object node configuration is silently bypassed.
+- `SKILL.md` updated with an explicit authoring-time callout for reserved `msg` keys on Native Objects, reinforcing the `node-reference.md` content at the skill-orchestration layer. Spot-check eval across six prompts (main vs. reference-only vs. reference + skill) showed a 3/6 → 4/6 → 5/6 pass rate, confirming the skill-level reinforcement carries weight beyond the reference doc alone.
+
 ### Changed
 
 - **Disallowed In This Skill** list extended with `ctxl recordversions rollback --do-not-bump` (and the `rv rollback --do-not-bump` alias). Plain `rollback` without the flag remains allowed because version history is preserved and the operation is recoverable; only the history-truncating variant is destructive.
@@ -29,7 +34,7 @@ Tracks `@contextual-io/cli@0.10.0`. CLI reference picks up the new `recordversio
 
 ## [0.7.1] — 2026-04-27
 
-The first comprehensive release of the plugin since establishing the BYOS pioneer feedback cycle. This release lands a substantial body of pioneer-fed reference content alongside foundational restructuring of the plugin's skills and agents. Reporters whose findings shipped in this release: **Marcelo Lopes**, **Angela Woods**, **James Stolp**, **Kevin OBryan**.
+The first comprehensive release of the plugin since adopting verify-first empirical testing as the operating model for documentation evolution. This release lands a substantial body of empirically-verified reference content alongside foundational restructuring of the plugin's skills and agents.
 
 ### Added
 
@@ -104,7 +109,7 @@ The first comprehensive release of the plugin since establishing the BYOS pionee
 
 ### Changed
 
-- **"Universal rule" in AGENTS.md**: source-of-truth precedence is now plugin-side reference content first (kept current via the BYOS pioneer feedback cycle), `ctxl:solai-knowledge` second (for platform/runtime behavior not covered in plugin-side reference). Cross-cutting queries can run both in parallel.
+- **"Universal rule" in AGENTS.md**: source-of-truth precedence is now plugin-side reference content first (kept current via ongoing empirical verification against the live platform), `ctxl:solai-knowledge` second (for platform/runtime behavior not covered in plugin-side reference). Cross-cutting queries can run both in parallel.
 - **"How to access plugin-side reference"** added to AGENTS.md and mirrored to `solai-cli` Hard Rules: invoke the relevant skill — do not `grep`, `find`, or otherwise enumerate the plugin install directory (`~/.claude/plugins/...`) directly.
 - **"Correct empty flow shape"** in `cli-reference.md` corrected: `native-object-config` `name` is a display label, not a tenant resolver; empty credential fields are inert; tab is optional in the persisted record (the dashboard does not emit one).
 - **README "Keeping Up to Date"** rewritten to reflect actual behavior — `autoUpdate` was found to be a no-op via empirical testing, replaced with the real `claude plugin update` command.
@@ -122,12 +127,6 @@ The first comprehensive release of the plugin since establishing the BYOS pionee
 
 ### Notes
 
-- This release establishes the **BYOS pioneer feedback cycle** (Report → Bucket → Verify → Draft → Implement → Validate → Release → Forward) as the operating model for plugin doc evolution. The cycle's verify-first principle caught multiple cases where shipping a session retro verbatim would have actively misled users — including framing-inverted claims about `msg.statusCode` precedence, `native-object-config` `name` semantics, and empty-credential-field requirements. See `working-private/byos-pioneer-process-and-governance.md` for the full taxonomy.
-- Pioneer reporter credits for findings shipped in this release:
-  - **Marcelo Lopes** — function-node logging (`logger.*` vs `node.*` vs `log-tap`), loop node setup-gates, `ctxl types add` envelope fields, cross-batch wire silent-drop behavior, `flow_read` wire audit gap, `node.log()` silent behavior
-  - **Angela Woods** — `query-native-object` `query: ""` empty-string foot-gun, `outputPropertyType` requirement, MCP server flow-lock behavior
-  - **James Stolp** — `ctxl types add` JSONL constraint, `http-response` `statusCode` precedence (D&D session diagnosis)
-  - **Kevin OBryan** — `native-object-config` record-shape investigation; T-D4 verification empirically resolved the cluster
-- **Versioning history**: personal-fork iterations 0.7.2 through 0.7.16 were used for live testing during the development of this release; only 0.7.1 is the official version.
+- This release establishes a **verify-first** operating model for plugin doc evolution: every reported behavior is empirically reproduced against the live platform before it ships in the reference content. The principle caught multiple cases where shipping a reported behavior verbatim would have actively misled users — including framing-inverted claims about `msg.statusCode` precedence, `native-object-config` `name` semantics, and empty-credential-field requirements.
 
 [0.7.1]: https://github.com/ContextualIO/solution-ai-connect/releases/tag/v0.7.1
