@@ -4,7 +4,7 @@ All notable changes to the Solution AI Connect plugin are documented in this fil
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.7.2] — 2026-05-04
+## [0.7.2] — 2026-05-12
 
 Tracks `@contextual-io/cli@0.10.0`. CLI reference picks up the new `recordversions` topic, the new `recordaudittrail list` command, and the extended `records get --version` / `#N` URI fragment. Flow editor reference also picks up a new **Reserved `msg` keys** subsection for Native Object nodes, addressing a class of silent-override foot-guns observed when AI agents author flows.
 
