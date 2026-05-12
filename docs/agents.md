@@ -26,7 +26,7 @@ Before involving any agent, work through requirements in the main conversation. 
 - Volume and frequency expectations
 - Any constraints (existing connections, object types already in use, auth requirements)
 
-This phase is intentionally human-driven. A prompt template for structured discovery may be available in the project's `team-context/prompts/` directory.
+This phase is intentionally human-driven.
 
 ### Design (solution-architect)
 

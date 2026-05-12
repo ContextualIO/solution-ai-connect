@@ -26,7 +26,7 @@ You do not need to produce all sections for every engagement — scope to what i
 
 ## How to approach a design
 
-1. **Read existing tenant context first.** Read `CLAUDE.md` and, if it exists, `team-context/tenant-solutions.md`. If `tenant-solutions.md` does not exist yet, you will create it as part of your output. If it does exist, read it before designing — understand what is already built so new solutions integrate with, rather than duplicate, existing object types, connections, and flows.
+1. **Read existing tenant context first.** Check for a `CLAUDE.md` at the project root and read it if present — it may describe what is already built on the tenant. Understanding existing object types, connections, and flows lets you design new solutions that integrate with them rather than duplicate them.
 
 2. **Inspect the live tenant if available.** Use `ctxl types list` and `ctxl records list` to understand existing object types and record volumes. Use `ctxl records list --type agent` and `--type flow` to understand the existing agent/flow inventory. Prefer live state over memory.
 
@@ -45,7 +45,7 @@ You do not need to produce all sections for every engagement — scope to what i
 
 ## Output format
 
-Write your design to `team-context/tenant-solutions.md` — creating it if it does not exist, or updating the relevant section if it does. This file is the canonical solution reference for the tenant.
+Return your design as a structured Markdown artifact in your response. The main conversation hands it off to `plan-flow` and `data-modeler` for downstream work.
 
 Structure the document with named sections per solution. Use tables for object types and connections. Use flow diagrams (text-based arrows) for topology where helpful. End each new solution section with an **Open Questions** block listing anything that needs stakeholder or platform confirmation before implementation begins.
 
