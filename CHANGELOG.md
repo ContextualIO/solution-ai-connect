@@ -4,7 +4,13 @@ All notable changes to the Solution AI Connect plugin are documented in this fil
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.7.3] — 2026-05-15
+
+Replaces the flow-editor hex-ID pre-generation rule with a placeholder/uniqueness rule that matches the import tool's actual contract, documents `node_update`'s silent no-op on the `wires` field, and refreshes the silent-failure catalogue against the empirically-confirmed list. Also adds an MIT LICENSE at repo root.
+
+### Added
+
+- `LICENSE` — standard OSI MIT license at repo root, copyright Contextual, Inc. The repo went public without an explicit license file; this formalizes it.
 
 ### Changed
 
