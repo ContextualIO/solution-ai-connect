@@ -400,7 +400,7 @@ upstream → loop.in
 
 ```json
 {
-  "id": "<hex-id>",
+  "id": "<loop-id>",
   "type": "loop",
   "z": "<tab-id>",
   "name": "Iterate items",
