@@ -4,6 +4,21 @@ All notable changes to the Solution AI Connect plugin are documented in this fil
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+
+#### `skills/solai-flow-editor/SKILL.md`
+
+- **Sequencing rule 3 replaced.** Previous rule mandated pre-generated hex IDs via `secrets.token_hex(8)` before every `import`. Empirical testing against the live MCP confirmed the editor regenerates provided IDs under `preserveIds:false` (so hex IDs are no different from any short placeholder), and the actual invariant the rule was defending is *intra-batch uniqueness*: duplicate placeholder IDs silently drop the duplicate node, and numeric or empty-string `id`s silently drop the node entirely. New rule frames `id` in an import payload as a *placeholder used to resolve intra-batch wires*, requires uniqueness within the batch, and keeps the hex-ID recipe only as an optional uniqueness guarantee for payloads built in pieces.
+- **Wiring discipline tightened.** `node_update` is now documented as a silent no-op on the `wires` field — both `changes:{wires:...}` and JSON Patch `/wires` paths return `status:"ok", updated:["wires"], valid:true` while leaving wires unchanged. Applies to adding a wire, redirecting an existing wire, and clearing wires. Verified directly against `node_update changes:{name:...}` which does mutate, confirming the no-op is scoped to the `wires` field specifically. The `wire` tool is the only path that modifies wires.
+- **Silent-failure catalogue refreshed** in the skill-gate paragraph and the `nodeCount` verification rule. Replaces stale "missing pre-generated node IDs" framing with the empirically-confirmed list: cross-batch wire drops, intra-batch placeholder-ID collisions, invalid-`id`-type drops (numeric, empty string), and `node_update` wire no-ops.
+
+#### `AGENTS.md`
+
+- Silent-failure catalogue at the skill-gate updated to match the SKILL.md catalogue.
+- "Hex-id pre-generation" example replaced with "wiring discipline" in the skill-bypass warning paragraph.
+
 ## [0.7.2] — 2026-05-12
 
 Tracks `@contextual-io/cli@0.10.0`. CLI reference picks up the new `recordversions` topic, the new `recordaudittrail list` command, and the extended `records get --version` / `#N` URI fragment. Flow editor reference also picks up a new **Reserved `msg` keys** subsection for Native Object nodes, addressing a class of silent-override foot-guns observed when AI agents author flows.
