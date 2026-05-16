@@ -18,7 +18,7 @@ Invoke this skill **before** any `mcp__ctxl-flow-editor__*` tool call that inspe
 
 The trigger is **intent to work on a flow**, not the literal word "edit". A request like *"add some comment nodes to my hello world flow"* qualifies — load the skill before the first `editor_state` / `flow_read` / `type_info` / `import` call.
 
-**Why this matters:** loading this skill brings node-reference.md, sequencing rules (especially node ID pre-generation — see Sequencing rules step 3), and the silent-failure catalogue into context. Skipping it produces failures the MCP server does not surface clearly: missing pre-generated IDs, wrong node types, dropped cross-batch wires, broken `tray_open`→`tray_read` sequences, malformed `editable-list` defaults.
+**Why this matters:** loading this skill brings node-reference.md, sequencing rules (especially intra-batch placeholder IDs and cross-batch wiring — see Sequencing rules step 3), and the silent-failure catalogue into context. Skipping it produces failures the MCP server does not surface clearly: dropped cross-batch wires, intra-batch placeholder-ID collisions that silently drop a node, invalid `id` types (numeric, empty string) that silently drop a node, `node_update` wire-mutations that report success but do nothing, wrong node types, broken `tray_open`→`tray_read` sequences, malformed `editable-list` defaults.
 
 ## Setup Check
 
@@ -86,7 +86,7 @@ For genuinely cross-cutting queries, run multiple sources in parallel — the an
 Follow these on every task:
 1. Call `list_sessions` if the target flow ID is unknown
 2. Call `editor_state` to confirm the active tab before any write operation
-3. **Generate all node IDs before doing anything else that leads to `import`.** Use `python3 -c "import secrets; print(secrets.token_hex(8))"` via Bash — one call per node needed. An import attempted without a pre-generated ID fails immediately. Do this before `type_info`, before building the payload, before navigate.
+3. **Use unique placeholder IDs for intra-batch wiring — do not pre-generate hex IDs.** When wiring imported nodes to each other in a single batch, each node you intend to wire to needs an `id` field in the payload. The editor replaces it with a generated ID on placement; the placeholder is used only to resolve the batch's `wires` arrays during the call. Any short string works — a counter (`n1`, `n2`, …) or descriptive labels (`in`, `parse`, `log`). **IDs must be unique within the batch:** if two nodes share an `id`, only one is placed and the duplicate is silently dropped (the import response's `nodeCount` will be lower than your input, with no error). Numeric IDs and empty-string IDs are silently rejected the same way. If you can't trust yourself to maintain a counter across a payload built in pieces, `python3 -c "import secrets; print(secrets.token_hex(8))"` is a cheap way to guarantee uniqueness — but that's the only reason to use it; the platform does not require hex IDs at import. **Cross-batch wires are a separate matter** — see the "**`import` is placement only**" rule above.
 4. Before any `import` or `node_update` of a node type you haven't used in this session: **first** confirm `node-reference.md` has been read this session and consult its entry for this node type (the foot-gun warnings live there, not in `type_info`); **then** call `type_info` to confirm the property shape. Both are needed — `type_info` reports defaults, `node-reference.md` warns when those defaults will throw at runtime. Any field showing `defaultValue: "[Circular]"` in the `propertyMap` is an editable-list array — always set it to `[]` explicitly in the import payload. This is reliable across all node types; `[Circular]` is a JSON serialisation artifact, not a missing value. **For Native Object nodes:** before building the import payload, also verify that any upstream `function` or `change` nodes do not store data on reserved `msg` keys (`typeId`, `objectId`, `query`, `search`, `filters`, `property`, `order`, `fields`, etc. — see the full list in `node-reference.md`). Use nested paths like `msg.payload.*` or `msg.data.*` instead. Setting a reserved key on `msg` silently overrides the downstream node's configured value.
 5. Call `navigate` to the target tab before calling `import`
 6. Call `validate` scoped to the affected tab after every batch of changes. Treat the results as follows:
@@ -133,7 +133,7 @@ Changed lines are highlighted in the editor. Do not call `tray_commit` after cod
 
 ## Wiring discipline
 
-- **Prefer `wire` for all connection changes** — it is explicit, targeted, and reliable. `node_update` does not manage wires; wires are maintained by the editor's link layer and must be set via `wire`. Never attempt to set wires through `node_update`.
+- **Use `wire` for every wire change — `node_update` silently no-ops on the `wires` field.** This applies whether you're adding a wire to a node that has none, redirecting an existing wire to a different target, or clearing wires entirely. Both `node_update changes:{wires:...}` and `node_update patch:[{op:"replace", path:"/wires", ...}]` return `status:"ok", updated:["wires"], valid:true` while leaving wires unchanged. The only signal that nothing happened is reading the node's `wires` back. Use the `wire` tool's `add` / `remove` operations exclusively for any wire modification. `node_update` is correct for non-wire properties (`name`, `func`, configuration fields) only.
 - After any wiring changes, call `flow_read` on the affected tab and audit wires on every node added or modified in this task
 - Trace each changed path end-to-end from entry node to terminal. Scope to paths in focus, not the entire flow.
 - **Never diagnose wiring from screenshots alone.** Long wires running across the canvas can visually appear to originate from nearby nodes. Before accepting a suspected fan-out or race condition, call `flow_read` and check the node's `wires` array and `outputs` count. A wire that looks like a second output from a node may be a long wire from an upstream node passing through that region of the canvas.
@@ -148,7 +148,7 @@ Guidelines:
 - Comment/stub nodes: no meaningful limit observed up to 20
 - Function nodes with substantial code: up to 20 landed reliably in a single import
 - If a timeout occurs: split the batch and retry — no partial writes were observed; it's all-or-nothing
-- After each import, always verify `nodeCount` in the response matches expectation before continuing
+- After each import, always verify `nodeCount` in the response matches the number of nodes you sent. A mismatch indicates one or more nodes were silently dropped — common causes are duplicate placeholder IDs within the batch, invalid `id` types (numeric, empty string), and malformed payload shapes. Investigate before continuing.
 - Never work from memory — always read current state before acting
 - Every tab needs error handling: catch → log-tap (error) → http-response 500 or contextual-error
 

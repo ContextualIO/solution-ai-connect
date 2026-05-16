@@ -39,7 +39,7 @@ These exist so Claude can answer "is the server up / which flows are open?" with
 - Reads into flow contents: `editor_state`, `flow_read`, `tray_open`, `tray_read`, `result_read`, `logger_messages`, `search`, `type_info`, `validate`, `navigate`
 - All writes: `import`, `wire`, `node_update`, `code_read`, `code_write`, `code_edit`, `code_grep`, `code_patch`, `tray_write`, `tray_commit`, `move`, `copy`, `delete`, `group`, `select`
 
-Tool availability ≠ guidance loaded. Skipping the skill produces silent failures the MCP server does not catch: missing pre-generated node IDs, wrong node types, dropped cross-batch wires, broken `tray_open`→`tray_read` sequences, malformed `editable-list` defaults. Errors surface obscurely or partial changes apply.
+Tool availability ≠ guidance loaded. Skipping the skill produces silent failures the MCP server does not catch: dropped cross-batch wires, intra-batch placeholder-ID collisions that silently drop a node, invalid `id` types (numeric, empty string) that silently drop a node, `node_update` wire-mutations that report success but do nothing, wrong node types, broken `tray_open`→`tray_read` sequences, malformed `editable-list` defaults. Errors surface obscurely or partial changes apply.
 
 **Sequence when a flow-editing intent is detected:**
 1. (Optional) `list_sessions` to confirm a session exists for the target flow.
@@ -74,7 +74,7 @@ Four skills are available. Reach for them before answering platform questions fr
 
 **Universal rule:** Don't answer platform questions from memory. Source-of-truth precedence: (1) plugin-side reference content (`cli-reference.md`, `node-reference.md`, the relevant `SKILL.md`) — empirically-verified build-time reality, kept current via ongoing verification against the live platform; (2) `ctxl:solai-knowledge` — for platform/runtime behavior not covered in (1). For genuinely cross-cutting queries (spanning both build-time mechanics and broader platform context), run both in parallel — the answers are complementary.
 
-**How to access plugin-side reference:** Invoke the relevant skill (`/ctxl:solai-flow-editor`, `/ctxl:solai-cli`, `/ctxl:solai-data-modeler`) — it loads the reference content (`node-reference.md`, `cli-reference.md`, the relevant `SKILL.md`) properly into context, along with sequencing rules and validation discipline. **Do not `grep`, `find`, or otherwise enumerate the plugin install directory** (`~/.claude/plugins/...`) to locate plugin reference content directly. That path is implementation detail, bypasses skill-level guidance (sequencing rules, validation patterns, hex-id pre-generation, etc.), and exposes plugin internals as if they're a normal interaction surface. Always go through the skill.
+**How to access plugin-side reference:** Invoke the relevant skill (`/ctxl:solai-flow-editor`, `/ctxl:solai-cli`, `/ctxl:solai-data-modeler`) — it loads the reference content (`node-reference.md`, `cli-reference.md`, the relevant `SKILL.md`) properly into context, along with sequencing rules and validation discipline. **Do not `grep`, `find`, or otherwise enumerate the plugin install directory** (`~/.claude/plugins/...`) to locate plugin reference content directly. That path is implementation detail, bypasses skill-level guidance (sequencing rules, validation patterns, wiring discipline, etc.), and exposes plugin internals as if they're a normal interaction surface. Always go through the skill.
 
 ---
 
