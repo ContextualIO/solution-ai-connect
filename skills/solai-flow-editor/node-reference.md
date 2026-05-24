@@ -107,6 +107,23 @@ The same precedence applies to headers: configured headers on the node win; `msg
 
 ---
 
+## HTTP ingress payload limits — editor runtime vs. agent runtime
+
+The runtime that serves an HTTP flow's endpoint applies a hard ingress cap on request body size. The cap differs between the Flow Editor's preview runtime and a deployed agent's runtime:
+
+| Runtime | Endpoint shape | Default ingress cap |
+|---|---|---|
+| Flow Editor preview | `https://<flow-id>.flow.<tenant-id>.my.contextual.io/<path>` | **~2 MB** (`nginx client_max_body_size: 2m`) |
+| Agent (`flow-http`) | `https://<agent-id>.service.<tenant-id>.my.contextual.io/<path>` | **40 MB** |
+
+The editor preview's lower cap is intentional — the editor runtime is provisioned with significantly fewer resources than a typical agent. Don't treat it as a bug; treat it as a routing decision about which runtime to test against.
+
+**Practical implication for HTTP flows with large payloads:** testing requests above ~2 MB against the editor preview URL will fail at the proxy layer before the request reaches the flow. To test large-payload ingress (file uploads, multi-MB JSON bodies, HTML asset hosting, etc.), bind the flow to an agent and exercise the agent's runtime endpoint instead.
+
+**Diagnostic tip:** if you see opaque `413 Request Entity Too Large` or "request body too large" responses against the editor preview URL — especially before any logging from the flow itself fires — suspect the editor's ingress cap before assuming the flow is broken. The same flow tested via its bound agent's endpoint should accept payloads up to ~40 MB.
+
+---
+
 ## inject nodes — simulating trigger and action payloads
 
 Use `inject` nodes only when explicitly requested for manual testing in the Flow Editor. Never configure `inject` to automatically start or perform rapid repeated injection.

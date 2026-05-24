@@ -567,6 +567,7 @@ Key gotchas:
 - `size` is a UUID, not a human label.
 - `flow` must be pinned to a specific version using the `#N` suffix.
 - `configName` is auto-generated on creation and should not be supplied.
+- HTTP agents (`flow-http`) accept request bodies up to **40 MB** at the runtime endpoint, vs. ~2 MB at the Flow Editor preview endpoint for the same flow. See `solai-flow-editor/node-reference.md` → "HTTP ingress payload limits — editor runtime vs. agent runtime" for the routing implication when testing large-payload flows.
 
 Common size UUIDs:
 - Small: `8836d51b-51f0-4417-b799-b8fb692e6a1b`
