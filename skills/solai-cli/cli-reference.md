@@ -2,6 +2,17 @@
 
 Use this as the compact command map for `ctxl`. It tracks the current CLI README while limiting the skill to non-destructive operations.
 
+## Output Formatting
+
+JSON output is **compact (single-line) by default**. Pass `--pretty` to indent and line-break for human reading; omit it when piping into `jq`, `python3 -c`, or another consumer:
+
+```bash
+ctxl config current --json               # compact
+ctxl config current --json --pretty      # pretty-printed
+```
+
+`--pretty` is supported on the `services`, `servicereleases`, `records`, `recordversions`, `recordaudittrail`, `types`, and `config` topics. Empirically: large responses (e.g. `servicereleases list` with inline `data`) can exceed 800KB even compact — for routine inventory work, prefer commands and flags that omit inline record bodies (see the `--with-data` note in [Services](#services)).
+
 ## Config
 
 - `ctxl config list --json`
@@ -233,6 +244,166 @@ Aliases: `ra list`, `recordaudittrail search`, `ra search`.
 > **Default ordering differs from `records list` / `types list`.** Both `recordversions list` and `recordaudittrail list` default `--order-by` to `_metaData.createdAt:desc` (newest first). `records list` and `types list` have no default ordering — the server returns its natural order. Pass `--order-by` explicitly when you need a specific order on the latter two.
 
 > **Counting without pulling bodies.** Pair `--include-total --page-size 1` on any `list` command (`records list`, `types list`, `recordversions list`, `recordaudittrail list`) to get a `totalCount` in one round-trip. The CLI accepts `--page-size 0` but **the server silently ignores it** and falls back to its default page (~25 items) — always use `1`, not `0`. Caveat for `recordversions list`: the single returned body is still the full record content per version (for flows that's the entire `node_red_data`, typically 50–100KB). Significant saving over pulling all versions; not zero-cost. Empirically verified against a flow with 38 versions: 1.8MB at `--page-size 0` (server-ignored) → 90KB at `--page-size 1` → both report `totalCount: 38` correctly.
+
+## Services
+
+Services are the canonical, portable deployment primitive on Contextual: a versioned, release-managed package of native-object dependencies pulled by a target tenant from a source tenant. Scope is flexible — a service may represent a microservice, an app, a use case, or any other deployable unit; the publisher decides what to bundle.
+
+- `ctxl services list [--include-total] [--page-size N] [--page-token TOKEN] [--export] [--progress] [-s FIELD=VALUE] [--exact-search FIELD=VALUE] [--from FIELD=VALUE] [--to FIELD=VALUE] [--order-by FIELD:desc]`
+- `ctxl services get [ID] [--id ID]... [--with-data]` — `--id` may be repeated to fetch multiple services in one call
+- `ctxl services patch ID [--add-direct URI]... [--add-peer URI]... [--remove-direct URI]... [--remove-peer URI]... [--set-direct URI]... [--set-peer URI]...` ⚠️ write — see write discipline below
+
+Aliases: `services search` -> `services list`.
+
+### Owned vs. installed services
+
+Two service shapes exist on a tenant. Detect the distinction by checking for `sourceTenantId` on the response.
+
+| | Owned | Installed |
+|---|---|---|
+| `sourceTenantId` | absent | present (source tenant id) |
+| Extra fields on `list` / `get` | none | `releaseTrack`, `description`, `endpoint`, `sourceTenantId` |
+| Pull updates from upstream | n/a | yes — `servicereleases list --updates` and `updatediff` apply |
+| `services patch` | mutates working manifest in advance of cutting a new release | technically possible but pointless — installed manifests are reset to upstream content on the next update |
+
+### Dependency entries
+
+Each dependency is `{ typeId, instanceId?, version, data? }`:
+
+| Form | Meaning |
+|---|---|
+| `{ typeId: "<type-id>", version: N }` (no `instanceId`) | The **object type definition** itself, at that version. |
+| `{ typeId, instanceId, version }` | A typed **instance** record at the pinned version. |
+
+Common `typeId` values mirror the platform native-object types: `flow`, `agent`, `api-configuration`, `ai-route`, `authorization-code-app`, `jwks-configuration`, plus any custom object type IDs.
+
+Two dependency classes carry different semantics:
+
+- `direct` — dependencies the service owns; the service release is the source of truth for these versions in any target tenant. Subject to pruning at update time (see [Update-time pruning of direct deps](#update-time-pruning-of-direct-deps)).
+- `peer` — dependencies the host context is expected to provide; **not** subject to pruning at update time.
+
+### Patch URI format
+
+`services patch` flags take a URI in the same form used elsewhere in the CLI; the CLI parses it into `{ typeId, instanceId, version }` and sends a structured patch to the services API:
+
+| URI form | Meaning |
+|---|---|
+| `native-object:<type-id>#N` | The type definition at version N. |
+| `native-object:<type-id>/<instance-id>#N` | A typed instance at version N. |
+
+```bash
+ctxl services patch my-service \
+  --set-direct native-object:my-type#42 \
+  --add-direct native-object:api-configuration/my-connection#3 \
+  --config-id <config-id>
+```
+
+### `--with-data` size note
+
+Without `--with-data`, `services get` returns the manifest list only (~hundreds of bytes per dep). With `--with-data`, each entry is hydrated with the full underlying native-object record — flows carry the entire `node_red_data`, typically 30–100KB per flow. A six-dep service can exceed 800KB. Use `--with-data` only when you specifically need inline record bodies; for routine inventory, skip the flag and fetch individual deps on demand with `ctxl records get`.
+
+### Working version vs. released version
+
+`services get` returns the current working manifest with a `version` integer that increments on **both** `services patch` calls and release snaps. Snapping a release (in the workspace UI) atomically bumps the working `version` by +1 as part of the snap transaction. So immediately after a release is cut:
+
+- `service.version` equals `(latest_released_version) + 1`
+- The working manifest's direct-dep pins are byte-identical to the just-snapped release
+
+That post-snap state is the **normal baseline, not a pending change**. Working `version` advances further only on subsequent `services patch` calls. Because of this, `servicereleases get -v <service.version>` will 404 on the post-snap baseline (no release record exists at that version yet) — expected, not an error.
+
+> **Services have no audit trail.** `ctxl recordaudittrail --type service` returns `404 Type 'service' not found`. Services are not records, so the record audit trail surface does not apply. To investigate when a service was last patched or snapped, compare `_metaData.updatedAt` on the service against `_metaData.createdAt` on the latest release.
+
+### Write discipline for `services patch`
+
+Apply the same discipline as `records patch` / `records replace`:
+
+1. Read the current manifest (`services get <id>` without `--with-data`).
+2. Project the patch — for each flag, compute the resulting dependency list and surface the field-level diff against the current manifest.
+3. Show the planned flags and the diff to the user; ask for explicit confirmation.
+4. Invoke `services patch ID ...` only after confirmation.
+5. Re-read with `services get <id>` and verify the resulting `version` and dependency state.
+
+The `solai-release-manager` skill provides a structured pre-patch advisor (cherry-pick mode); for ad-hoc patches via this skill, hand-roll the diff against `services get` output.
+
+## Service Releases
+
+Service releases are the immutable, versioned snapshots that target tenants pull. Each release pins every direct and peer dependency to a specific version, carries a `releaseTrack`, and may include human-authored release notes (`description`).
+
+- `ctxl servicereleases list [ID] [--updates] [--include-total] [--page-size N] [--page-token TOKEN] [--export] [--progress] [-s FIELD=VALUE] [--exact-search FIELD=VALUE] [--from FIELD=VALUE] [--to FIELD=VALUE] [--order-by FIELD:desc]`
+- `ctxl servicereleases get [ID] -v N [-v M]...` — `--version` may be repeated to fetch multiple releases
+- `ctxl servicereleases diff ID VERSIONS [--format console|json|jsonpatch] [--no-moves] [--object-keys KEYS]`
+- `ctxl servicereleases updatediff ID -v N [--format console|json|jsonpatch] [--no-moves] [--object-keys KEYS]`
+
+Aliases: `sr list`, `servicereleases search`, `sr search`; `sr get`; `sr diff`; `sr updatediff`.
+
+### Release track values
+
+Each release is on one of four tracks (workspace UI exposes the same set):
+
+| Track | Meaning |
+|---|---|
+| `development` | In-progress or experimental; not promoted for staging. |
+| `release-candidate` | Stable for staging; not yet promoted to general availability. |
+| `general-availability` | Promoted to general availability. |
+| `removed-from-distribution` | Deprecated; should not be installed or updated to. |
+
+### Release object shape
+
+```json
+{
+  "id": "<service-id>",
+  "name": "<display name>",
+  "version": N,
+  "releaseTrack": "general-availability",
+  "description": "release notes...",
+  "dependencies": {
+    "direct": [
+      { "typeId": "<type-id>", "instanceId": "<instance-id>", "version": M, "data": { "...full native-object record..." } }
+    ],
+    "peer": []
+  },
+  "_metaData": { }
+}
+```
+
+`dependencies.direct[].data` carries the full native-object record at the time the release was cut. Same large-output caveats apply as `services get --with-data`.
+
+### Diff scope and version-range syntax
+
+`servicereleases diff` and `servicereleases updatediff` reuse the same version-range mini-grammar and `--format` options as `recordversions diff` — see [Record Versions](#record-versions). One scope detail to keep in mind: the diff is computed over the `dependencies` sub-tree only, so `jsonpatch` paths start at `/direct/...` or `/peer/...`, not `/dependencies/direct/...`.
+
+### Which read paths route via `sourceTenantId`
+
+For installed services, release records live on the **source tenant**, not the target tenant. Among the `servicereleases` read commands, only `--updates` and `updatediff` route the request through `sourceTenantId`; `servicereleases get` and `servicereleases list` (without `--updates`) hit the target tenant directly and **404** for releases the target has never pulled.
+
+| Command | Routes via `sourceTenantId` on installed services? | Behaviour on a release that lives only on source |
+|---|---|---|
+| `servicereleases list <id> --updates` | yes | returns the release inline in the items list |
+| `servicereleases updatediff <id> -v N` | yes | returns the diff against the installed manifest |
+| `servicereleases get <id> -v N` | no | **404** "Service release not found" |
+| `servicereleases list <id>` (no `--updates`) | no | returns only releases the target tenant has locally |
+| `servicereleases diff <id> N..M` | no | requires both versions visible to the target tenant |
+
+Practically: to inspect an incoming upstream release from a target tenant, use `--updates` and read the release object inline from the items list — do not chain a separate `servicereleases get`.
+
+### `--updates` and `updatediff` semantics
+
+Both commands return `Cannot fetch updates for an owned service` on owned services (no `sourceTenantId`). On installed services:
+
+- `servicereleases list <id> --updates` — lists upstream releases with version greater than the currently installed version. Each item is the full release object (`id`, `version`, `releaseTrack`, `description`, `dependencies.direct[]` with inline `data`, `_metaData`). `totalCount: 0` means no upgrade candidates available.
+- `servicereleases updatediff <id> -v <target-version>` — diffs the installed manifest against the candidate upstream release. Can return non-empty output even when comparing against the currently installed version, because the installed copy may lack metadata fields (e.g. `hash`) that the upstream record carries. **`--updates totalCount == 0` is the authoritative "no upgrade available" signal**, not an empty `updatediff`.
+
+### Update-time pruning of direct deps
+
+When a target tenant applies a service update, direct dependencies are reset to the versions pinned in the incoming release. Any version of a direct-dep record that exists in the target tenant **above** the incoming pinned version is **pruned** — those incremental versions (typically applied as hotfixes between updates) are lost. Versions **below** the incoming pinned version are preserved in the record's version history.
+
+Peer dependencies are not subject to this pruning behaviour.
+
+The platform behaviour today does not warn at update time. The `solai-release-manager` skill provides a structured pre-update audit that walks each direct dep, identifies hotfix drift in the target tenant, and produces a markdown assessment artifact — see that skill for the workflow. Use it before applying any service update in the workspace UI.
+
+### Routine workflow
+
+For release management end-to-end (pre-update hotfix-drift audit on target tenants, pre-publish cherry-pick advisor on source tenants), use the `solai-release-manager` skill rather than orchestrating from raw CLI calls.
 
 ## Platform Type IDs
 

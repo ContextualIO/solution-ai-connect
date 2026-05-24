@@ -71,7 +71,7 @@ Two helper scripts are bundled with this skill. When invoking them, tell the use
 - Never call Contextual APIs directly with `curl`, `fetch`, custom headers, or handwritten HTTP requests.
 - Never expose or summarize bearer tokens, refresh tokens, or auth headers.
 - Do not use `ctxl config delete`, `ctxl records delete/remove/rm`, or `ctxl types delete/remove/rm`.
-- Before any `replace` or `patch` operation, show a diff or the exact planned patch flags and ask for explicit confirmation.
+- Before any `replace` or `patch` operation — `records replace`, `records patch`, `types replace`, **`services patch`** — show a diff or the exact planned patch flags and ask for explicit confirmation. For `services patch` specifically, project the dependency-list change against the current `services get` output before asking. For full release-management workflows (cherry-pick advisor on owned services, pre-update hotfix audit on installed services), use the `solai-release-manager` skill.
 - Once you know the target config, prefer `--config-id <config-id>` on tenant commands even if you already ran `ctxl config use`.
 - **Exhaust plugin-side reference content first.** `cli-reference.md`, `node-reference.md`, and this `SKILL.md` are kept current with empirically-verified build-time reality — canonical for CLI shapes, JSONL formats, flow record structure, node-level behavior, and sequencing rules. Use `solai-knowledge` for platform/runtime behavior not covered there. For genuinely cross-cutting queries (spanning both build-time mechanics and broader platform context), run both in parallel — the answers are complementary, not duplicative.
 - **Do not `grep`, `find`, or otherwise enumerate the plugin install directory** (`~/.claude/plugins/...`) to locate plugin reference content directly. That path is implementation detail and bypasses skill-level guidance (sequencing rules, validation patterns, hex-id pre-generation, etc.). To access plugin-side reference, invoke the relevant skill — it loads the reference content properly into context.
@@ -421,3 +421,4 @@ All other tools are dynamically loaded from SolutionAI's tool manifest for the `
 - When auth recovery happens, continue the original task after retry.
 - For writes, include the diff or exact patch plan before asking for confirmation.
 - After any confirmed write, verify and report what changed.
+- JSON output is **compact by default**. Add `--pretty` when running a command whose output the user is meant to read inline; omit `--pretty` when piping into `jq`, `python3 -c`, or programmatic consumers. See `cli-reference.md` → Output Formatting.
