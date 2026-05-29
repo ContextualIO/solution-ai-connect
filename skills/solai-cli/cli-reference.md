@@ -11,7 +11,25 @@ ctxl config current --json               # compact
 ctxl config current --json --pretty      # pretty-printed
 ```
 
-`--pretty` is supported on the `services`, `servicereleases`, `records`, `recordversions`, `recordaudittrail`, `types`, and `config` topics. Empirically: large responses (e.g. `servicereleases list` with inline `data`) can exceed 800KB even compact — for routine inventory work, prefer commands and flags that omit inline record bodies (see the `--with-data` note in [Services](#services)).
+`--pretty` indents `logJson`-based output and is supported on the `services`, `servicereleases`, `records`, `recordversions`, `recordaudittrail`, `types`, and `logs backlog` topics. Two exceptions to keep in mind: `config current` does **not** support it (passing `--pretty` throws a `TypeError`), and `ctxl logs` accepts the flag but uses it differently — it toggles how the trailing `message` is rendered rather than indenting JSON (see [Logs](#logs)). Empirically: large responses (e.g. `servicereleases list` with inline `data`) can exceed 800KB even compact — for routine inventory work, prefer commands and flags that omit inline record bodies (see the `--with-data` note in [Services](#services)) or project to the fields you actually need (see `--fields` below).
+
+### Field projection on `list` commands
+
+All `list` commands accept `--fields <comma-separated-paths>` for **positive** field projection — the server returns only the named paths per item. Motivated by payload pressure on heavy list endpoints (CTX-3517): a `servicereleases list` per-item payload is dominated by inline `dependencies.direct[].data` and can exceed 30MB for a single service's release history.
+
+```bash
+# Service-release inventory without inline data
+ctxl servicereleases list my-service \
+  --fields id,version,releaseTrack,description \
+  --config-id <config-id>
+
+# Lightweight flow listing — id + name + version only
+ctxl records list --type flow \
+  --fields id,name,_metaData.version \
+  --config-id <config-id>
+```
+
+Available on every list topic: `records list`, `types list`, `recordversions list`, `recordaudittrail list`, `services list`, `servicereleases list`. Reach for `--fields` first when a list call would otherwise drag inline `data` blocks or full record bodies into context.
 
 ## Config
 
@@ -366,7 +384,7 @@ Each release is on one of four tracks (workspace UI exposes the same set):
 }
 ```
 
-`dependencies.direct[].data` carries the full native-object record at the time the release was cut. Same large-output caveats apply as `services get --with-data`.
+`dependencies.direct[].data` carries the full native-object record at the time the release was cut. Same large-output caveats apply as `services get --with-data`. For bulk listings, pair `servicereleases list` with `--fields id,version,releaseTrack,description` (see [Field projection on `list` commands](#field-projection-on-list-commands)) to project away inline `data` and bound the response size.
 
 ### Diff scope and version-range syntax
 
@@ -404,6 +422,119 @@ The platform behaviour today does not warn at update time. The `solai-release-ma
 ### Routine workflow
 
 For release management end-to-end (pre-update hotfix-drift audit on target tenants, pre-publish cherry-pick advisor on source tenants), use the `solai-release-manager` skill rather than orchestrating from raw CLI calls.
+
+## Logs
+
+Platform runtime logs emitted by agents and the runtime itself. Distinct from the record/type audit trail ([`recordaudittrail`](#record-audit-trail)) which tracks user-attributable record mutations — these are runtime emissions tied to executing flows, agents, and platform actions. The **backlog** is a per-user notification buffer for logs not yet consumed by an interactive session.
+
+> **Log content is passthrough.** The `message` field is returned exactly as the emitting node serialized it — `log-tap` and similar nodes faithfully record whatever object they were handed, and the API and CLI do not interpret or redact that content. Flows that log full request/response objects, full `msg` payloads, or downstream service responses will surface whatever those objects contain: headers (including `Authorization`), bodies, side data, stack traces. This is diagnostic faithfulness by design, not a bug. Both ends of the pipe matter: flow authors should be deliberate about what `log-tap` receives (prefer logging keys and shapes over whole objects), and log consumers — especially AI agents — should project to the envelope and expand `message` only with explicit intent. See [Safe consumption patterns](#safe-consumption-patterns).
+
+- `ctxl logs [SUB-KIND] [-f] [-l LEVEL]... [--since DURATION | --since-time ISO8601] [-s SUB-KIND] [-t N] [-q CLQL-FILE] [--pretty]` — list or follow logs.
+- `ctxl logs backlog` — GET the current user's backlog.
+- `ctxl logs backlog flush` ⚠️ write — DELETE the current user's backlog. Irreversible; require explicit user confirmation. See write discipline in [SKILL.md](SKILL.md#hard-rules).
+
+### Flags on `ctxl logs`
+
+| Flag | Notes |
+|---|---|
+| `-f, --follow` | Stream live via SSE from the notifications API; runs until interrupted. Page-based filters (`--tail`, `--since*`) are ignored in follow mode. |
+| `-l, --level LEVEL` (alias `--levels`) | Repeatable; filters to one or more of `debug`, `info`, `warn`, `error`, `fatal`. |
+| `--since DURATION` | Relative cutoff like `5s`, `2m`, `3h`. Server parses as `now-<value>`. **Mutually exclusive** with `--since-time`. |
+| `--since-time ISO8601` | Absolute ISO8601 zulu cutoff (e.g. `2026-05-28T17:00:00Z`). |
+| `-s, --sub-kind SUB-KIND` | Alternative to the positional `subKind` arg. |
+| `-t, --tail N` | Lines of recent logs to display. Default `-1` (all). Internal page-size is capped at 250. |
+| `-q, --clql-file FILE` | Server-side CLQL query read from a file; pass `-` to read the query from stdin. Filters at the source — this is the precise-filter mechanism for logs, since `ctxl logs` output is text and not `jq`-parseable. CLQL syntax is evolving and not pinned here: look it up via the `solai-knowledge` skill (`tenants/tenant-logs/contextual-log-query-language-clql`) or [the CLQL docs](https://docs.contextual.io/documentation-and-resources/tenants/tenant-logs/contextual-log-query-language-clql). |
+| `--pretty` | Renders `message` via Node `util.inspect` (`%o`) instead of `JSON.stringify`. Does **not** make output `jq`-parseable (and expands `message` to multiple lines) — see the note under [Output line format](#output-line-format). |
+
+### subKind auto-expansion
+
+If `subKind` (positional or `-s`) doesn't already end in `-agent-<silo>`, the CLI matches **both** the bare value and `<value>-agent-<silo>`. So `ctxl logs my-agent` on the `prod` silo selects logs whose `subKind` is either `my-agent` or `my-agent-agent-prod`. Pass the fully-qualified form (`my-agent-agent-prod`) to disable expansion.
+
+### Output line format
+
+```
+<createdAt> [<typeId>/<instanceId>] [<sessionId>] <level>: <message>
+```
+
+`message` is `JSON.stringify`'d by default; `--pretty` switches to Node `util.inspect` (`%o`).
+
+> **`ctxl logs` output is text, not JSON.** Every line is the format above — there is no JSON-object-per-line mode, so the output is **not `jq`-parseable** in either mode (piping to `jq` silently yields nothing, which reads as a false "no logs"). Only `createdAt`, `typeId`, `instanceId`, `sessionId`, `level`, and `message` are printed; the other `LogMessage` fields below (`kind`, `subKind`, `correlationId`, `source`, `id`) exist in the API payload and in `logs backlog` JSON, but `ctxl logs` does not surface them. To project or filter, use text tools (`sed`/`awk`/`grep`) on the line format, or push the filter server-side with `-q/--clql-file`. `--pretty` makes `message` *multi-line* (`util.inspect`), which also breaks line-oriented tools — omit it for any programmatic consumption.
+
+### LogMessage shape
+
+| Field | Type | Notes |
+|---|---|---|
+| `id` | string | Unique log id. |
+| `createdAt` | string (ISO8601) | Server timestamp. |
+| `level` | `debug` \| `info` \| `warn` \| `error` \| `fatal` | |
+| `kind` | `trigger` \| `action` \| `execution` | Lifecycle phase. |
+| `subKind` | string | Source identity (typically `<agent-id>-agent-<silo>`). |
+| `typeId` | string | Source object type id. |
+| `instanceId` | string | Source object instance id. |
+| `sessionId` | string | Per-execution session id; ties together logs from a single invocation. |
+| `correlationId` | string (optional) | Cross-call correlation when the platform propagates one. |
+| `source` | string | Emitter component. |
+| `type` | `string` \| `json` | Whether `message` is a plain string or a structured object. |
+| `message` | string \| object | The payload. |
+
+### Backlog
+
+Per-user buffer of logs emitted while no interactive session was consuming them. `ctxl logs backlog` returns the current backlog content; `ctxl logs backlog flush` deletes it. Flushing is **irreversible** — show the user the current backlog (`ctxl logs backlog`) and ask for explicit confirmation before invoking the flush.
+
+### Common patterns
+
+```bash
+# Recent error/fatal log tail across the tenant (last 5 minutes)
+ctxl logs --level error --level fatal --since 5m --config-id <config-id>
+
+# Follow a specific agent live (auto-expands to <agent>-agent-<silo>)
+ctxl logs my-agent --follow --config-id <config-id>
+
+# Last 50 lines for a fully-qualified subKind, since an absolute time
+ctxl logs --sub-kind my-agent-agent-prod \
+  --tail 50 \
+  --since-time 2026-05-28T17:00:00Z \
+  --config-id <config-id>
+```
+
+### Safe consumption patterns
+
+Because `message` is whatever the emitting node serialized, a consumer cannot assume it's free of secrets — even on tenants the consumer owns. The most common contamination pattern is the HTTP-handling flow that logs an entire request or response object: those carry `Authorization` headers verbatim, plus body content, cookies, and query parameters. A single such `log-tap` upstream is enough to contaminate the whole stream a consumer sees. Treat `message` as content the consumer opts into seeing, not as default-visible — projection is the default, expansion is the exception.
+
+**Envelope-only projection — drop `message`, keep routing metadata.** Use this as the default consumption shape for any agent-facing logs query. `ctxl logs` emits text lines (not JSON), so project with `sed`/`awk` against the line format — cut everything from the `<level>:` boundary onward to discard `message`:
+
+```bash
+ctxl logs --tail 50 --since 5m --config-id <config-id> \
+  | sed -E 's/ (debug|info|warn|error|fatal): .*/ \1/'
+```
+
+This keeps `<createdAt> [<typeId>/<instanceId>] [<sessionId>] <level>` and drops the payload. The envelope alone answers most "what's happening?" / "did anything fail?" questions — counts by level, recent failing agents, session correlation — without exposing payload content. **Do not pipe `ctxl logs` into `jq`** — the output is not JSON, so it silently yields nothing and reads as a false "no logs found" — and **do not add `--pretty`**, which expands `message` into multi-line `util.inspect` and breaks the line cut. For precise filtering, prefer a server-side `-q/--clql-file` query over client-side projection.
+
+**Targeted message inspection — redact JWT-shaped strings inline.** When the user explicitly asks to inspect a specific log's payload, redact JWT patterns before the agent ever sees the line. Bearer tokens emitted by `log-tap` are the highest-risk class because they're often still valid:
+
+```bash
+ctxl logs --sub-kind <known-agent> --tail 20 --config-id <config-id> \
+  | sed -E 's/eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+/<JWT-REDACTED>/g'
+```
+
+This redacts standard three-segment JWTs in-place. It does **not** catch other secret patterns (API keys, session tokens with non-JWT shapes, sensitive PII) — for those, prefer envelope-only projection and decline to expand `message` without explicit user direction.
+
+**`--follow` from an agent's background process.** Always pipe through a projection before any stdout-consumer in the agent's context sees a line. The unfiltered SSE stream is a continuous source of whatever the tenant's flows emit, and tokens that arrive in-flight may still be valid for hours or days. Follow output is the same text format, so project with `sed` (not `jq`):
+
+```bash
+ctxl logs --follow --level error --sub-kind <known-agent> --config-id <config-id> \
+  | sed -E 's/ (debug|info|warn|error|fatal): .*/ \1/' \
+  | head -20
+```
+
+`head -20` bounds the consumed lines for the agent's session; replace with a sentinel-line `grep -m` or a `timeout` wrapper as appropriate to the workflow.
+
+**Backlog inspection.** Unlike `ctxl logs`, `ctxl logs backlog` returns JSON (via `logJson`), so `jq` works here — project to the envelope and drop `message` before surfacing to an agent. Leave `--pretty` off; the default compact output is already `jq`-parseable:
+
+```bash
+ctxl logs backlog --config-id <config-id> \
+  | jq -c '.items[]? | {createdAt, level, subKind, typeId, instanceId}'
+```
 
 ## Platform Type IDs
 
