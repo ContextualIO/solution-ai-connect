@@ -463,6 +463,17 @@ Note: the same `logger.*` / `log-tap` emission can surface in both (drawer durin
 | `-q, --clql-file FILE` | Server-side CLQL query read from a file; pass `-` to read the query from stdin. Filters at the source — this is the precise-filter mechanism for logs, since `ctxl logs` output is text and not `jq`-parseable. CLQL syntax is evolving and not pinned here: look it up via the `solai-knowledge` skill (`tenants/tenant-logs/contextual-log-query-language-clql`) or [the CLQL docs](https://docs.contextual.io/documentation-and-resources/tenants/tenant-logs/contextual-log-query-language-clql). |
 | `--pretty` | Renders `message` via Node `util.inspect` (`%o`) instead of `JSON.stringify`. Does **not** make output `jq`-parseable (and expands `message` to multiple lines) — see the note under [Output line format](#output-line-format). |
 
+### CLQL query shape — `matches` vs glob
+
+CLQL offers two matching constructs that behave differently; reaching for the wrong one **silently returns nothing**:
+
+- **Glob `*TERM*`** (bare string search) — true **substring / contains** match. Use it for "does this term appear anywhere?" Requires the trailing `*`: `*TERM*` and `TERM*` (prefix) work; `*TERM` (suffix-only) does not.
+- **`_message matches <regex>`** — an **anchored** regex: the pattern matches from the start of a token, and `.` / `.+` / `.*` do **not** cross token boundaries (spaces, quotes, colons). So `TERM.+` matches a term that starts a token, but a leading-wildcard `.+TERM.+` returns **0 even when the term is present**. Use `matches` only for anchored / known-token / whole-value filtering — **not** for substring search.
+- **Both are case-sensitive** — no case-folding (`*Bearer*` ≠ `*bearer*`). Run case variants, or pull a sample and `grep -i` client-side when you need case-insensitive certainty.
+- `--tail` caps the rows returned, not the match — raise it for fuller counts.
+
+**Rule of thumb:** use a glob `*TERM*` for "is it present / contains?"; use `_message matches` for anchored, known-shape filtering. A leading-wildcard `matches` pattern that returns 0 is the classic silent false-negative — switch to a `*TERM*` glob before concluding a term is absent. Full CLQL operator/field syntax is evolving — look it up via the `solai-knowledge` skill or [the CLQL docs](https://docs.contextual.io/documentation-and-resources/tenants/tenant-logs/contextual-log-query-language-clql).
+
 ### subKind auto-expansion
 
 If `subKind` (positional or `-s`) doesn't already end in `-agent-<silo>`, the CLI matches **both** the bare value and `<value>-agent-<silo>`. So `ctxl logs my-agent` on the `prod` silo selects logs whose `subKind` is either `my-agent` or `my-agent-agent-prod`. Pass the fully-qualified form (`my-agent-agent-prod`) to disable expansion.
