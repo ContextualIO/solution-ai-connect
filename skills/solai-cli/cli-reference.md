@@ -319,9 +319,9 @@ ctxl services patch my-service \
 
 **Apply one dependency change per call.** Issue a single `--set-direct` / `--add-direct` / `--add-peer` (or `--remove-*`) per `services patch`, then re-read with `services get` to confirm it landed before the next change. Don't rely on multiple add/set flags in a single call all taking effect — apply them as separate, individually-verified calls.
 
-### `--with-data` size note
+### `--with-data` — required for the `services get` manifest
 
-Without `--with-data`, `services get` returns the manifest list only (~hundreds of bytes per dep). With `--with-data`, each entry is hydrated with the full underlying native-object record — flows carry the entire `node_red_data`, typically 30–100KB per flow. A six-dep service can exceed 800KB. Use `--with-data` only when you specifically need inline record bodies; for routine inventory, skip the flag and fetch individual deps on demand with `ctxl records get`.
+**`ctxl services get` returns only `id`, `name`, `version`, and `_metaData` by default — the `dependencies` manifest is omitted entirely unless you pass `--with-data`.** So `--with-data` is required to see the working manifest's dependency list *at all*; it additionally hydrates each entry's inline native-object record `data`, which is what makes the response large (flows carry the entire `node_red_data`, 30–100KB/flow — a multi-dep service can exceed 800KB). To get the manifest without the heavy bodies, pass `--with-data` and project with `jq` to `{typeId, instanceId, version}`, dropping `.data`. (`servicereleases get`, by contrast, always includes `dependencies`.)
 
 ### Working version vs. released version
 
@@ -338,11 +338,11 @@ That post-snap state is the **normal baseline, not a pending change**. Working `
 
 Apply the same discipline as `records patch` / `records replace`:
 
-1. Read the current manifest (`services get <id>` without `--with-data`).
+1. Read the current manifest (`services get <id> --with-data` — required to return the `dependencies` manifest; project away inline `.data` with `jq`).
 2. Project the patch — for each flag, compute the resulting dependency list and surface the field-level diff against the current manifest.
 3. Show the planned flags and the diff to the user; ask for explicit confirmation.
 4. Invoke `services patch ID ...` only after confirmation.
-5. Re-read with `services get <id>` and verify the resulting `version` and dependency state.
+5. Re-read with `services get <id> --with-data` and verify the resulting `version` and dependency state (the `dependencies` manifest appears only with `--with-data`).
 
 The `solai-release-advisor` skill provides a structured pre-patch advisor (cherry-pick mode); for ad-hoc patches via this skill, hand-roll the diff against `services get` output.
 

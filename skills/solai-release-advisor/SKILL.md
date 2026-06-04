@@ -147,10 +147,10 @@ If the user wants to remove the allow-list after testing, the entries to remove 
 
 ## Workflow
 
-This skill covers the **owned-service** release path. Detect ownership via `sourceTenantId` on the service get response:
+This skill covers the **owned-service** release path. Detect ownership via `sourceTenantId`. Note that `services get` without `--with-data` returns only `id`/`name`/`version`/`_metaData` (no ownership or dependency detail), so pass `--with-data` — or classify from `services list`, which carries `sourceTenantId` per service:
 
 ```bash
-ctxl services get <service-id> --config-id <config-id>
+ctxl services get <service-id> --with-data --config-id <config-id>
 ```
 
 - `sourceTenantId` **absent** → **owned** → use the [Cherry-pick advisor](#cherry-pick-advisor-owned-services) below.
@@ -178,7 +178,7 @@ python3 "${CLAUDE_SKILL_DIR}/scripts/service_manifest_summarize.py" \
 
 The script:
 
-1. Fetches the current working manifest (`services get <service-id>` without `--with-data`).
+1. Fetches the current working manifest (`services get <service-id> --with-data` — required to return the dependency manifest — projecting away inline `.data`).
 2. Fetches the last released manifest (`servicereleases get <service-id> -v <latest>`).
 3. Diffs the two — surfaces direct deps where the working version differs from the released version, and per-dep, the actual current max version of that record in the tenant.
 4. Emits a compact table: `typeId | instanceId | released_version | working_version | tenant_max_version | suggested_action`.
@@ -202,10 +202,10 @@ ctxl services patch <service-id> \
   --config-id <config-id>
 ```
 
-Re-read the manifest:
+Re-read the manifest (`--with-data` — the dependency entries appear only with it):
 
 ```bash
-ctxl services get <service-id> --config-id <config-id>
+ctxl services get <service-id> --with-data --config-id <config-id>
 ```
 
 Confirm the resulting `version` incremented and the dependency entries match expectations.
@@ -230,5 +230,5 @@ It takes `--config-id` and delegates auth to whatever the active `ctxl` config h
 
 - State the bottom line first — "K direct dep(s) have bumps available since the last release."
 - For any `services patch` operation, show the projected manifest diff before asking for confirmation.
-- After any confirmed write, re-read with `services get` and report the resulting `version` and dependency list.
+- After any confirmed write, re-read with `services get --with-data` and report the resulting `version` and dependency list (`dependencies` appears only with `--with-data`).
 - If the user asks for an installed-service / target-tenant operation, surface that this build covers owned services only (see [Workflow](#workflow)) rather than improvising.
