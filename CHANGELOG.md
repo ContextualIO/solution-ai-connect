@@ -56,6 +56,14 @@ Adds documentation and release-management tooling for the `services` and `servic
 - `## Output Expectations` adds a bullet on the compact-by-default JSON + `--pretty` convention for human-facing output.
 - MCP guidance updated for CLI 0.11: notes the `--trace` verbosity level on `ctxl mcp serve`, and adds a hard rule gating `ctxl mcp debug` as a last-resort connectivity diagnostic — the missed-dialog recovery (re-trigger + watch the sidebar) stays primary; escalate to `mcp debug` only when the connection itself is suspect.
 
+### Fixed & refined
+
+- **Secret-bearing records — no inference from metadata.** Guard so the agent never infers credential storage or exposure from a record's shape (an empty `_metaData.secrets` does **not** mean a credential is inline/less-protected) and never raises a "secret-hygiene" concern from record metadata — all credential fields are platform-managed secrets. (CTX-3557)
+- **`services get --with-data` corrected.** `services get` returns only `id`/`name`/`version`/`_metaData` by default — the `dependencies` manifest is omitted **entirely** without `--with-data` (the prior note wrongly implied the list showed either way). All dependent reads updated: the cherry-pick manifest read, the post-patch re-verify, and ownership detection (which a bare `services get` left blind to `sourceTenantId`). (CTX-3451)
+- **`services patch` — one change per call.** Issue a single `--set-direct` / `--add-direct` / `--add-peer` per call and re-verify before the next; don't batch add/set flags in one call (they may not all take effect). (CTX-3563)
+- **CLQL `matches` vs glob.** Query-shape guidance: `*TERM*` glob for substring/contains; `_message matches` is anchored (a leading-wildcard pattern silently returns 0 for a term that is present); both are case-sensitive. (CTX-3522, CTX-3564)
+- **Installed-service hard-stop.** `solai-release-advisor` firmly stops on installed services and forbids improvising target-tenant update / pruning / hotfix-drift analysis — interim until the installed-service workflow ships. (CTX-3565)
+
 ## [0.7.3] — 2026-05-15
 
 Replaces the flow-editor hex-ID pre-generation rule with a placeholder/uniqueness rule that matches the import tool's actual contract, documents `node_update`'s silent no-op on the `wires` field, and refreshes the silent-failure catalogue against the empirically-confirmed list. Also adds an MIT LICENSE at repo root.
