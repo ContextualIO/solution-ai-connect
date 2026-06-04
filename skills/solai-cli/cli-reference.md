@@ -11,7 +11,7 @@ ctxl config current --json               # compact
 ctxl config current --json --pretty      # pretty-printed
 ```
 
-`--pretty` indents `logJson`-based output and is supported on the `services`, `servicereleases`, `records`, `recordversions`, `recordaudittrail`, `types`, and `logs backlog` topics. Two exceptions to keep in mind: `config current` does **not** support it (passing `--pretty` throws a `TypeError`), and `ctxl logs` accepts the flag but uses it differently — it toggles how the trailing `message` is rendered rather than indenting JSON (see [Logs](#logs)). Empirically: large responses (e.g. `servicereleases list` with inline `data`) can exceed 800KB even compact — for routine inventory work, prefer commands and flags that omit inline record bodies (see the `--with-data` note in [Services](#services)) or project to the fields you actually need (see `--fields` below).
+`--pretty` indents JSON output and is supported on the `services`, `servicereleases`, `records`, `recordversions`, `recordaudittrail`, `types`, and `logs backlog` topics. Two exceptions to keep in mind: `config current` does **not** support it (passing `--pretty` throws a `TypeError`), and `ctxl logs` accepts the flag but uses it differently — it toggles how the trailing `message` is rendered rather than indenting JSON (see [Logs](#logs)). Empirically: large responses (e.g. `servicereleases list` with inline `data`) can exceed 800KB even compact — for routine inventory work, prefer commands and flags that omit inline record bodies (see the `--with-data` note in [Services](#services)) or project to the fields you actually need (see `--fields` below).
 
 ### Field projection on `list` commands
 
@@ -30,6 +30,8 @@ ctxl records list --type flow \
 ```
 
 Available on every list topic: `records list`, `types list`, `recordversions list`, `recordaudittrail list`, `services list`, `servicereleases list`. Reach for `--fields` first when a list call would otherwise drag inline `data` blocks or full record bodies into context.
+
+> **Secret-bearing records — project, don't dump.** Connections (`api-configuration`) carry credential values, and Agents carry environment-variable values — treat all of these as secrets. Inspect them with a projected `list` query, requesting only the non-secret fields you need (a Connection's id / name / provider / endpoint; an Agent's env-var labels), so secret values never enter the session. Never read a secret back to "verify" a Connection or AI Route — test the behavior instead — and never ask the user to paste a secret into the chat; secrets belong only in the platform's credential / env-var fields. See the secret-handling hard rule in [SKILL.md](SKILL.md#hard-rules).
 
 ## Config
 
@@ -341,7 +343,7 @@ Apply the same discipline as `records patch` / `records replace`:
 4. Invoke `services patch ID ...` only after confirmation.
 5. Re-read with `services get <id>` and verify the resulting `version` and dependency state.
 
-The `solai-release-manager` skill provides a structured pre-patch advisor (cherry-pick mode); for ad-hoc patches via this skill, hand-roll the diff against `services get` output.
+The `solai-release-advisor` skill provides a structured pre-patch advisor (cherry-pick mode); for ad-hoc patches via this skill, hand-roll the diff against `services get` output.
 
 ## Service Releases
 
@@ -417,15 +419,29 @@ When a target tenant applies a service update, direct dependencies are reset to 
 
 Peer dependencies are not subject to this pruning behaviour.
 
-The platform behaviour today does not warn at update time. The `solai-release-manager` skill provides a structured pre-update audit that walks each direct dep, identifies hotfix drift in the target tenant, and produces a markdown assessment artifact — see that skill for the workflow. Use it before applying any service update in the workspace UI.
+The platform behaviour today does not warn at update time. Assessing it ahead of an update means reading the target tenant's current dependency versions against the incoming release (`servicereleases updatediff`, `recordversions diff`) — operate with least-privilege credentials and per your organization's policy for production or otherwise sensitive tenants, and apply the update itself in the workspace UI.
 
 ### Routine workflow
 
-For release management end-to-end (pre-update hotfix-drift audit on target tenants, pre-publish cherry-pick advisor on source tenants), use the `solai-release-manager` skill rather than orchestrating from raw CLI calls.
+For pre-publish cherry-pick advice on a service you own, use the `solai-release-advisor` skill rather than orchestrating from raw CLI calls.
 
 ## Logs
 
 Platform runtime logs emitted by agents and the runtime itself. Distinct from the record/type audit trail ([`recordaudittrail`](#record-audit-trail)) which tracks user-attributable record mutations — these are runtime emissions tied to executing flows, agents, and platform actions. The **backlog** is a per-user notification buffer for logs not yet consumed by an interactive session.
+
+### Tenant Logs vs. the Flow Editor logger
+
+`ctxl logs` retrieves **Tenant Logs** — persistent emissions from running/deployed agents, CLQL-queryable. This is distinct from the **Flow Editor logger / debug drawer**: ephemeral messages from the current editor session, read with the flow-editor MCP `logger_messages` tool (see the `solai-flow-editor` skill), available only while the flow is open in the editor. CLQL applies to Tenant Logs only.
+
+| | Tenant Logs | Flow Editor logger (debug drawer) |
+|---|---|---|
+| Retrieve with | `ctxl logs` family (here) | `logger_messages` (flow-editor MCP) |
+| Lifetime / scope | Persistent; tenant-wide, across runs | Ephemeral; this editor session only |
+| CLQL | Yes (`--clql-file`) | No |
+
+**Routing:** if the user is working in the Flow Editor over MCP and says "check the logs/logger," they most likely mean the **debug drawer** (`logger_messages`), not `ctxl logs`. Default to `ctxl logs` for CLI/tenant context — deployed agents, no live editor session — and on explicit cues like "agent / deployed / prod / over the last hour / session id / query / CLQL" (CLQL is a Tenant-Logs tell). When context and cues conflict, ask one clarifying question rather than guess.
+
+Note: the same `logger.*` / `log-tap` emission can surface in both (drawer during editor runs, Tenant Logs from deployed runs) — so it's about which retrieval surface is wanted now. Both are served by the same `ctxl` binary — `ctxl logs` is a direct command; the editor logger rides the `ctxl mcp serve` bridge — same binary, **distinct channels**; the shared origin is not a reason to treat them as one.
 
 > **Log content is passthrough.** The `message` field is returned exactly as the emitting node serialized it — `log-tap` and similar nodes faithfully record whatever object they were handed, and the API and CLI do not interpret or redact that content. Flows that log full request/response objects, full `msg` payloads, or downstream service responses will surface whatever those objects contain: headers (including `Authorization`), bodies, side data, stack traces. This is diagnostic faithfulness by design, not a bug. Both ends of the pipe matter: flow authors should be deliberate about what `log-tap` receives (prefer logging keys and shapes over whole objects), and log consumers — especially AI agents — should project to the envelope and expand `message` only with explicit intent. See [Safe consumption patterns](#safe-consumption-patterns).
 
@@ -529,7 +545,7 @@ ctxl logs --follow --level error --sub-kind <known-agent> --config-id <config-id
 
 `head -20` bounds the consumed lines for the agent's session; replace with a sentinel-line `grep -m` or a `timeout` wrapper as appropriate to the workflow.
 
-**Backlog inspection.** Unlike `ctxl logs`, `ctxl logs backlog` returns JSON (via `logJson`), so `jq` works here — project to the envelope and drop `message` before surfacing to an agent. Leave `--pretty` off; the default compact output is already `jq`-parseable:
+**Backlog inspection.** Unlike `ctxl logs`, `ctxl logs backlog` returns JSON, so `jq` works here — project to the envelope and drop `message` before surfacing to an agent. Leave `--pretty` off; the default compact output is already `jq`-parseable:
 
 ```bash
 ctxl logs backlog --config-id <config-id> \
