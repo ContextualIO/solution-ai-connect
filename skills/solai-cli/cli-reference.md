@@ -314,9 +314,10 @@ Two dependency classes carry different semantics:
 ```bash
 ctxl services patch my-service \
   --set-direct native-object:my-type#42 \
-  --add-direct native-object:api-configuration/my-connection#3 \
   --config-id <config-id>
 ```
+
+**Apply one dependency change per call.** Issue a single `--set-direct` / `--add-direct` / `--add-peer` (or `--remove-*`) per `services patch`, then re-read with `services get` to confirm it landed before the next change. Don't rely on multiple add/set flags in a single call all taking effect — apply them as separate, individually-verified calls.
 
 ### `--with-data` size note
 

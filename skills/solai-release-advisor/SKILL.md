@@ -210,6 +210,8 @@ ctxl services get <service-id> --config-id <config-id>
 
 Confirm the resulting `version` incremented and the dependency entries match expectations.
 
+**One change per call.** Apply a single `--set-direct` / `--add-direct` / `--add-peer` per `services patch`, and re-verify with `services get` before the next — don't batch multiple add/set flags in one call, since they may not all take effect. For a multi-dependency cherry-pick, walk the user through the bumps one at a time, patching and confirming each before moving on.
+
 ### Snap the release
 
 Tell the user: "The working manifest is updated. Snap the release in the workspace UI at `https://<tenant-id>.my.contextual.io/services/my-services/<service-id>` — pick the appropriate release track (`development`, `release-candidate`, `general-availability`, or `removed-from-distribution`) and add release notes. The CLI does not yet expose a release-snap command."
