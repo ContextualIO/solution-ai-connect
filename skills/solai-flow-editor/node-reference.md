@@ -346,6 +346,20 @@ A `log-tap` after this node sees only the final shape of `msg.payload`. The `awa
 
 `logger.debug(...)` is the only way to emit a `debug`-level entry from inside a function node that's visible in the editor sidebar — `node.log` cannot reach either surface.
 
+### "logs" vs. "logger" — two retrieval surfaces
+
+"logs" and "logger" are overloaded. When working in the Flow Editor, they almost always mean the **debug drawer** for the current editor session — read it with the `logger_messages` MCP tool. That surface is **ephemeral and editor-only**: it exists while the flow is open in the editor and reflects this session's runtime. It is distinct from **Tenant Logs** — the persistent emissions of running/deployed agents, retrieved with the `ctxl logs` CLI family in the `solai-cli` skill (and CLQL-queryable). CLQL applies to Tenant Logs only; it has no meaning for the debug drawer.
+
+| | Flow Editor logger (debug drawer) | Tenant Logs |
+|---|---|---|
+| Retrieve with | `logger_messages` (this MCP) | `ctxl logs` family (CLI, `solai-cli` skill) |
+| Lifetime / scope | Ephemeral; this editor session only | Persistent; tenant-wide, across runs |
+| CLQL | No | Yes (`--clql-file`) |
+
+**Routing:** in the editor, bare "check the logs/logger" → `logger_messages`. Switch to Tenant Logs only on explicit cues — "agent / deployed / prod / over the last hour / session id / query / CLQL." When context and cues conflict (e.g. a flow that's both open here *and* deployed), ask: "the editor's debug drawer for this session, or the tenant logs from the deployed agent?"
+
+Note: the same `await logger.*` / `log-tap` output can appear in **both** — the editor drawer during editor runs and Tenant Logs from deployed agent runs (see the logging table above) — so the question is which *retrieval surface* is wanted now. And both are served by the same `ctxl` binary — `ctxl logs` is a direct command; the editor logger rides the `ctxl mcp serve` bridge — same binary, **distinct channels**; the shared origin is not a reason to treat them as one.
+
 ---
 
 ## template nodes
