@@ -646,7 +646,7 @@ After edits, re-read the flow and verify the change actually landed.
 
 ## MCP
 
-- `ctxl mcp serve [INTERFACE] [-f FLOW-ID] [-p PORT] [-t] [-V] [-C CONFIG-ID]`
+- `ctxl mcp serve [INTERFACE] [-f FLOW-ID] [-p PORT] [-t] [-V] [--trace] [-C CONFIG-ID]`
 
 Default interface is `flow-editor`. Default port is `5051`.
 
@@ -655,12 +655,21 @@ Flags:
 - `-f, --flow FLOW-ID` — pre-filter sessions to a specific flow
 - `-p, --port PORT` — local HTTP port (default: 5051)
 - `-t, --tool-prefix` — prefix all MCP tool names with `ctxl_`
-- `-V, --verbose` — emit verbose MCP runtime diagnostics
+- `-V, --verbose` — emit verbose MCP runtime diagnostics (verbosity level 1)
+- `--trace` — emit socket-level MCP trace diagnostics (verbosity level 2; the most detail)
 
 Built-in MCP tools exposed by the server:
 
 - `list_sessions` — discover flows with active browser sessions
 - `info` — return runtime state (tenant, interface, connections, errors)
+
+### `ctxl mcp debug` — connectivity diagnostic
+
+- `ctxl mcp debug [INTERFACE] [-f FLOW-ID] [--delay MS] [--timeout MS] [-V] [--trace] [-C CONFIG-ID]`
+
+Runs a one-shot websocket diagnostic against SolutionAI and prints a JSON report covering socket **connect**, a **ping** (ack + pong, with a `status` such as `ack_and_pong_received`), the tool **manifest** (`toolCount`), and — when `-f/--flow` is given — a session **bind** that exercises the approval-callback path. Default interface is `flow-editor`; default `--timeout` is 15000ms; `--delay` injects a server-side ping-response delay for latency testing.
+
+**Scope — this is a connectivity diagnostic, not a fix for a missed approval dialog.** Reach for it only when the socket/manifest/bind chain itself is suspect (no dialog ever appears across repeated attempts, repeated socket errors, or calls still fail *after* the user confirms they accepted). A dialog the user simply didn't notice is recovered by re-triggering the call and watching the sidebar — see the MCP hard rules in [SKILL.md](SKILL.md#hard-rules-for-mcp).
 
 ## Object Type Schemas
 

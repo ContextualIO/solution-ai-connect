@@ -381,6 +381,8 @@ With verbose diagnostics:
 ctxl mcp serve -V --config-id <config-id>
 ```
 
+`-V` is verbosity level 1 (runtime diagnostics); `--trace` raises it to level 2 (socket-level trace). Use `--trace` only when diagnosing a connection problem, not for normal operation.
+
 Custom port:
 
 ```bash
@@ -415,6 +417,7 @@ All other tools are dynamically loaded from SolutionAI's tool manifest for the `
 - Do not change the default port unless the user requests it or port 5051 is occupied.
 - The MCP server runs as a foreground process. If the user needs CLI commands alongside it, they need a separate terminal or the server must be backgrounded.
 - Do not attempt to call MCP tools via curl or HTTP directly — they are meant for MCP-compatible clients.
+- **`ctxl mcp debug` is a last-resort connectivity diagnostic — not the response to a missed dialog.** When a tool call doesn't land, the overwhelmingly common cause is that the user simply didn't notice the **"MCP requesting access"** dialog in the Flow Editor's right sidebar. The fix is to re-trigger the call and ask them to watch for and accept it — that recovers the session without any diagnostic. Do **not** reach for `ctxl mcp debug` just because a dialog wasn't seen; that sends the user chasing a command when a second glance at the sidebar would have fixed it. Escalate to `ctxl mcp debug [interface] --flow <flow-id> --trace` (run by the user in their own terminal, like `serve`) **only** when the connection itself is suspect: no dialog appears across repeated attempts, calls keep failing *after* the user confirms they accepted, or the server reports socket errors. It prints a connect → ping → manifest → bind JSON report that isolates where the tunnel breaks.
 
 ## Output Expectations
 
