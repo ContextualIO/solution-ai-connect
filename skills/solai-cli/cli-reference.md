@@ -427,7 +427,7 @@ For pre-publish cherry-pick advice on a service you own, use the `solai-release-
 
 ## Logs
 
-Platform runtime logs emitted by agents and the runtime itself. Distinct from the record/type audit trail ([`recordaudittrail`](#record-audit-trail)) which tracks user-attributable record mutations — these are runtime emissions tied to executing flows, agents, and platform actions. The **backlog** is a per-user notification buffer for logs not yet consumed by an interactive session.
+Platform runtime logs emitted by agents and the runtime itself. Distinct from the record/type audit trail ([`recordaudittrail`](#record-audit-trail)) which tracks user-attributable record mutations — these are runtime emissions tied to executing flows, agents, and platform actions. The **backlog** is a tenant/silo-scoped indicator of unconsumed-log *lag* — how many emitted log messages have not yet been consumed by an interactive session — not a per-user store of readable messages.
 
 ### Tenant Logs vs. the Flow Editor logger
 
@@ -446,8 +446,8 @@ Note: the same `logger.*` / `log-tap` emission can surface in both (drawer durin
 > **Log content is passthrough.** The `message` field is returned exactly as the emitting node serialized it — `log-tap` and similar nodes faithfully record whatever object they were handed, and the API and CLI do not interpret or redact that content. Flows that log full request/response objects, full `msg` payloads, or downstream service responses will surface whatever those objects contain: headers (including `Authorization`), bodies, side data, stack traces. This is diagnostic faithfulness by design, not a bug. Both ends of the pipe matter: flow authors should be deliberate about what `log-tap` receives (prefer logging keys and shapes over whole objects), and log consumers — especially AI agents — should project to the envelope and expand `message` only with explicit intent. See [Safe consumption patterns](#safe-consumption-patterns).
 
 - `ctxl logs [SUB-KIND] [-f] [-l LEVEL]... [--since DURATION | --since-time ISO8601] [-s SUB-KIND] [-t N] [-q CLQL-FILE] [--pretty]` — list or follow logs.
-- `ctxl logs backlog` — GET the current user's backlog.
-- `ctxl logs backlog flush` ⚠️ write — DELETE the current user's backlog. Irreversible; require explicit user confirmation. See write discipline in [SKILL.md](SKILL.md#hard-rules).
+- `ctxl logs backlog` — report the tenant's unconsumed-log lag. Returns a consumer-lag summary (`{lag, partitions:[{partition, lag}]}`), **not** log records; `lag: 0` means the interactive session has kept pace.
+- `ctxl logs backlog flush` ⚠️ write — DELETE the tenant's log backlog, clearing the unconsumed lag. Irreversible and tenant-wide; require explicit user confirmation. See write discipline in [SKILL.md](SKILL.md#hard-rules).
 
 ### Flags on `ctxl logs`
 
@@ -474,7 +474,7 @@ If `subKind` (positional or `-s`) doesn't already end in `-agent-<silo>`, the CL
 
 `message` is `JSON.stringify`'d by default; `--pretty` switches to Node `util.inspect` (`%o`).
 
-> **`ctxl logs` output is text, not JSON.** Every line is the format above — there is no JSON-object-per-line mode, so the output is **not `jq`-parseable** in either mode (piping to `jq` silently yields nothing, which reads as a false "no logs"). Only `createdAt`, `typeId`, `instanceId`, `sessionId`, `level`, and `message` are printed; the other `LogMessage` fields below (`kind`, `subKind`, `correlationId`, `source`, `id`) exist in the API payload and in `logs backlog` JSON, but `ctxl logs` does not surface them. To project or filter, use text tools (`sed`/`awk`/`grep`) on the line format, or push the filter server-side with `-q/--clql-file`. `--pretty` makes `message` *multi-line* (`util.inspect`), which also breaks line-oriented tools — omit it for any programmatic consumption.
+> **`ctxl logs` output is text, not JSON.** Every line is the format above — there is no JSON-object-per-line mode, so the output is **not `jq`-parseable** in either mode (piping to `jq` silently yields nothing, which reads as a false "no logs"). Only `createdAt`, `typeId`, `instanceId`, `sessionId`, `level`, and `message` are printed; the other `LogMessage` fields below (`kind`, `subKind`, `correlationId`, `source`, `id`) exist in the API payload but `ctxl logs` does not surface them. To project or filter, use text tools (`sed`/`awk`/`grep`) on the line format, or push the filter server-side with `-q/--clql-file`. `--pretty` makes `message` *multi-line* (`util.inspect`), which also breaks line-oriented tools — omit it for any programmatic consumption.
 
 ### LogMessage shape
 
@@ -495,7 +495,7 @@ If `subKind` (positional or `-s`) doesn't already end in `-agent-<silo>`, the CL
 
 ### Backlog
 
-Per-user buffer of logs emitted while no interactive session was consuming them. `ctxl logs backlog` returns the current backlog content; `ctxl logs backlog flush` deletes it. Flushing is **irreversible** — show the user the current backlog (`ctxl logs backlog`) and ask for explicit confirmation before invoking the flush.
+Tenant/silo-scoped indicator of how many emitted log messages have not yet been consumed by an interactive session. `ctxl logs backlog` returns a **lag summary** (`{lag, partitions}`) — counts, not message content; `lag: 0` is the healthy steady state. `ctxl logs backlog flush` (DELETE) clears the backlog, dropping the unconsumed lag. Flushing is **irreversible and tenant-wide** — show the user the current lag (`ctxl logs backlog`) and ask for explicit confirmation before invoking the flush.
 
 ### Common patterns
 
@@ -545,11 +545,11 @@ ctxl logs --follow --level error --sub-kind <known-agent> --config-id <config-id
 
 `head -20` bounds the consumed lines for the agent's session; replace with a sentinel-line `grep -m` or a `timeout` wrapper as appropriate to the workflow.
 
-**Backlog inspection.** Unlike `ctxl logs`, `ctxl logs backlog` returns JSON, so `jq` works here — project to the envelope and drop `message` before surfacing to an agent. Leave `--pretty` off; the default compact output is already `jq`-parseable:
+**Backlog inspection.** `ctxl logs backlog` is **not** a payload surface — it returns a tenant lag summary (`{lag, partitions}`), counts only, with no `message` content — so there is nothing to redact or project. Read it directly to gauge whether the interactive log consumer is keeping pace:
 
 ```bash
-ctxl logs backlog --config-id <config-id> \
-  | jq -c '.items[]? | {createdAt, level, subKind, typeId, instanceId}'
+ctxl logs backlog --config-id <config-id>
+# {"lag": 0, "partitions": [{"partition": 0, "lag": 0}]}   → caught up, nothing buffered
 ```
 
 ## Platform Type IDs
