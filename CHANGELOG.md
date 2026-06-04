@@ -26,6 +26,7 @@ Adds documentation and release-management tooling for the `services` and `servic
 #### `skills/solai-flow-editor/node-reference.md`
 
 - New **"HTTP ingress payload limits — editor runtime vs. agent runtime"** section. Documents the runtime-side ingress cap delta: the Flow Editor's preview runtime caps HTTP request bodies at ~2 MB (`nginx client_max_body_size: 2m`), while a deployed `flow-http` agent's runtime accepts up to 40 MB. Includes the practical routing implication — testing large-payload ingress requires binding the flow to an agent and exercising the agent's runtime endpoint rather than the editor preview — and a diagnostic tip for spotting the cap as the cause of opaque `413 Request Entity Too Large` responses.
+- New **"AI model selection (AI Routes)"** section. Establishes that in the Contextual AI Gateway the model is selected on the AI Route only — not on the AI Connection (provider + credentials) or on AI Generate / AI Tool nodes (which inherit the Route's model). Directs the agent never to fill the Route's model field from training memory (identifiers go stale fast), to confirm a current GA model via web retrieval (e.g. the provider's model docs or models.dev) scoped to the Connection's provider type (OpenAI, Anthropic, Azure OpenAI, Google AI, Vertex AI, Vertex AI Anthropic), to default to the current generation, and to verify the Route with a test invocation before relying on it. Provider-/recency-policy framing, no pinned model IDs.
 
 ### Changed
 

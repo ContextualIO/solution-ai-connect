@@ -124,6 +124,22 @@ The editor preview's lower cap is intentional — the editor runtime is provisio
 
 ---
 
+## AI model selection (AI Routes)
+
+In the Contextual AI Gateway, **the model is selected on the AI Route — and only there.** An AI Connection carries the provider type, credentials, and endpoint (no model); AI Generate and AI Tool nodes reference an AI Route and inherit its model. There is no model field on a Connection or on a node — don't set or look for one there.
+
+When setting the model on a Route, the identifier matters and dates quickly:
+
+- **Never fill the Route's model field from memory.** Model identifiers in training data are very likely outdated — providers iterate and retire models far faster than a training cutoff. Always derive the value from a current source when you configure the Route.
+- **Confirm current models via web retrieval.** Check the provider's own model documentation, or a current-model index such as [models.dev](https://models.dev), and prefer the most recently released GA model in the family. Fetch it however the runtime allows — don't rely on a fixed command or a cached list.
+- **Default to the current generation.** Choose the provider's current flagship/mainstream GA model; avoid prior major generations, anything marked preview/experimental/deprecated, and models more than roughly a year old when a newer sibling exists.
+- **Scope to the Connection's provider type:** OpenAI, Anthropic, Azure OpenAI, Google AI, Vertex AI, or Vertex AI Anthropic — match the model lookup to the provider of the Connection the Route references.
+- **Verify before relying on it.** Model lineups move fast, so a name that looks valid may be out of date — after configuring the Route, exercise a flow path that uses it (e.g. an `inject` into an AI Generate / AI Tool node) and confirm a successful response in the debug output.
+
+See the [AI Routes docs](https://docs.contextual.io/documentation-and-resources/components-and-data/ai-routes) or the `solai-knowledge` skill for how Routes bind Connections to AI Generate / Tool nodes.
+
+---
+
 ## inject nodes — simulating trigger and action payloads
 
 Use `inject` nodes only when explicitly requested for manual testing in the Flow Editor. Never configure `inject` to automatically start or perform rapid repeated injection.
