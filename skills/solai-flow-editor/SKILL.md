@@ -128,7 +128,7 @@ Changed lines are highlighted in the editor. Do not call `tray_commit` after cod
 |------|------|-------|
 | Full live field model with values | `tray_open` → `tray_read` | `tray_open` first, then `tray_read`. Resolves TypedInput state, editor values, tab associations. |
 | Raw node data without side-effects | `flow_read` with `action: "node"` | Lightweight. No tray interaction. Missing live editor values **and missing `wires` (downstream targets — both `action:"node"` and `action:"object"` omit them).** |
-| **Wire / connection audit on a single node** | **`flow_read` with `action: "tab"`, `includeNodeDetails: true`** | **Returns the full tab — pick the target node from the `nodes` array. Only path that includes `wires` per node today.** |
+| **Wire / connection audit on a single node** | **`flow_read` with `action: "tab"`, `includeNodeDetails: true`** | **Returns the full tab — pick the target node from the `nodes` array. Only path that includes `wires` per node.** |
 | Code editor content | `code_read` | Paginated. Works while expanded editor is open. |
 | Node type defaults and help | `type_info` | Use before creating nodes or to understand a type's properties. |
 

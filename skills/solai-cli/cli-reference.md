@@ -202,7 +202,7 @@ Type input gotchas:
 
 > `ctxl types list` returns custom object types only. To get the full schema of any type, custom or platform, use `ctxl types get native-object:<type-id>`. This is the authoritative source for enums, patterns, constraints, defaults, and relations.
 
-> `ctxl types get` returns the **current** type definition only — there is no CLI path to a prior type-def version. A `#version` fragment on the URI is **silently ignored** (returns current), and `recordversions` is keyed by instance id, which type defs don't have. (The registry API does expose type-def versions, but no `ctxl` command surfaces them yet.) To diff a type def across versions when composing a Build, compare the working manifest's hydrated `.data` (pinned) against `types get` (current).
+> `ctxl types get` returns the **current** type definition only — there is no CLI path to a prior type-def version. A `#version` fragment on the URI is **silently ignored** (returns current), and `recordversions` is keyed by instance id, which type defs don't have. (The registry API does expose type-def versions, but no `ctxl` command surfaces them.) To diff a type def across versions when composing a Build, compare the working manifest's hydrated `.data` (pinned) against `types get` (current).
 
 ## Record Versions
 
@@ -422,7 +422,7 @@ When a target tenant applies a service update, direct dependencies are reset to 
 
 Peer dependencies are not subject to this pruning behaviour.
 
-At update time the workspace **now warns** about these potentially destructive outcomes before the update is applied — both the version pruning above and the complete removal of a dropped direct dep. To assess it ahead of that prompt, read the target tenant's current dependency versions against the incoming release (`servicereleases updatediff`, `recordversions diff`) — operate with least-privilege credentials and per your organization's policy for production or otherwise sensitive tenants, and apply the update itself in the workspace UI.
+At update time the workspace **warns** about these potentially destructive outcomes before the update is applied — both the version pruning above and the complete removal of a dropped direct dep. To assess it ahead of that prompt, read the target tenant's current dependency versions against the incoming release (`servicereleases updatediff`, `recordversions diff`) — operate with least-privilege credentials and per your organization's policy for production or otherwise sensitive tenants, and apply the update itself in the workspace UI.
 
 ### Routine workflow
 
@@ -444,7 +444,7 @@ Platform runtime logs emitted by agents and the runtime itself. Distinct from th
 
 **Routing:** if the user is working in the Flow Editor over MCP and says "check the logs/logger," they most likely mean the **debug drawer** (`logger_messages`), not `ctxl logs`. Default to `ctxl logs` for CLI/tenant context — deployed agents, no live editor session — and on explicit cues like "agent / deployed / prod / over the last hour / session id / query / CLQL" (CLQL is a Tenant-Logs tell). When context and cues conflict, ask one clarifying question rather than guess.
 
-Note: the same `logger.*` / `log-tap` emission can surface in both (drawer during editor runs, Tenant Logs from deployed runs) — so it's about which retrieval surface is wanted now. Both are served by the same `ctxl` binary — `ctxl logs` is a direct command; the editor logger rides the `ctxl mcp serve` bridge — same binary, **distinct channels**; the shared origin is not a reason to treat them as one.
+Note: the same `logger.*` / `log-tap` emission can surface in both (drawer during editor runs, Tenant Logs from deployed runs) — so it's about which retrieval surface is wanted. Both are served by the same `ctxl` binary — `ctxl logs` is a direct command; the editor logger rides the `ctxl mcp serve` bridge — same binary, **distinct channels**; the shared origin is not a reason to treat them as one.
 
 > **Log content is passthrough.** The `message` field is returned exactly as the emitting node serialized it — `log-tap` and similar nodes faithfully record whatever object they were handed, and the API and CLI do not interpret or redact that content. Flows that log full request/response objects, full `msg` payloads, or downstream service responses will surface whatever those objects contain: headers (including `Authorization`), bodies, side data, stack traces. This is diagnostic faithfulness by design, not a bug. Both ends of the pipe matter: flow authors should be deliberate about what `log-tap` receives (prefer logging keys and shapes over whole objects), and log consumers — especially AI agents — should project to the envelope and expand `message` only with explicit intent. See [Safe consumption patterns](#safe-consumption-patterns).
 

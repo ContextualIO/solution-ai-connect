@@ -358,7 +358,7 @@ A `log-tap` after this node sees only the final shape of `msg.payload`. The `awa
 
 **Routing:** in the editor, bare "check the logs/logger" → `logger_messages`. Switch to Tenant Logs only on explicit cues — "agent / deployed / prod / over the last hour / session id / query / CLQL." When context and cues conflict (e.g. a flow that's both open here *and* deployed), ask: "the editor's debug drawer for this session, or the tenant logs from the deployed agent?"
 
-Note: the same `await logger.*` / `log-tap` output can appear in **both** — the editor drawer during editor runs and Tenant Logs from deployed agent runs (see the logging table above) — so the question is which *retrieval surface* is wanted now. And both are served by the same `ctxl` binary — `ctxl logs` is a direct command; the editor logger rides the `ctxl mcp serve` bridge — same binary, **distinct channels**; the shared origin is not a reason to treat them as one.
+Note: the same `await logger.*` / `log-tap` output can appear in **both** — the editor drawer during editor runs and Tenant Logs from deployed agent runs (see the logging table above) — so the question is which *retrieval surface* is wanted. And both are served by the same `ctxl` binary — `ctxl logs` is a direct command; the editor logger rides the `ctxl mcp serve` bridge — same binary, **distinct channels**; the shared origin is not a reason to treat them as one.
 
 ---
 
