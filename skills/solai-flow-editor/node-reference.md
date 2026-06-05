@@ -107,6 +107,39 @@ The same precedence applies to headers: configured headers on the node win; `msg
 
 ---
 
+## HTTP ingress payload limits — editor runtime vs. agent runtime
+
+The runtime that serves an HTTP flow's endpoint applies a hard ingress cap on request body size. The cap differs between the Flow Editor's preview runtime and a deployed agent's runtime:
+
+| Runtime | Endpoint shape | Default ingress cap |
+|---|---|---|
+| Flow Editor preview | `https://<flow-id>.flow.<tenant-id>.my.contextual.io/<path>` | **~2 MB** (`nginx client_max_body_size: 2m`) |
+| Agent (`flow-http`) | `https://<agent-id>.service.<tenant-id>.my.contextual.io/<path>` | **40 MB** |
+
+The editor preview's lower cap is intentional — the editor runtime is provisioned with significantly fewer resources than a typical agent. Don't treat it as a bug; treat it as a routing decision about which runtime to test against.
+
+**Practical implication for HTTP flows with large payloads:** testing requests above ~2 MB against the editor preview URL will fail at the proxy layer before the request reaches the flow. To test large-payload ingress (file uploads, multi-MB JSON bodies, HTML asset hosting, etc.), bind the flow to an agent and exercise the agent's runtime endpoint instead.
+
+**Diagnostic tip:** if you see opaque `413 Request Entity Too Large` or "request body too large" responses against the editor preview URL — especially before any logging from the flow itself fires — suspect the editor's ingress cap before assuming the flow is broken. The same flow tested via its bound agent's endpoint should accept payloads up to ~40 MB.
+
+---
+
+## AI model selection (AI Routes)
+
+In the Contextual AI Gateway, **the model is selected on the AI Route — and only there.** An AI Connection carries the provider type, credentials, and endpoint (no model); AI Generate and AI Tool nodes reference an AI Route and inherit its model. There is no model field on a Connection or on a node — don't set or look for one there.
+
+When setting the model on a Route, the identifier matters and dates quickly:
+
+- **Never fill the Route's model field from memory.** Model identifiers in training data are very likely outdated — providers iterate and retire models far faster than a training cutoff. Always derive the value from a current source when you configure the Route.
+- **Confirm current models via web retrieval.** Check the provider's own model documentation, or a current-model index such as [models.dev](https://models.dev), and prefer the most recently released GA model in the family. Fetch it however the runtime allows — don't rely on a fixed command or a cached list.
+- **Default to the current generation.** Choose the provider's current flagship/mainstream GA model; avoid prior major generations, anything marked preview/experimental/deprecated, and models more than roughly a year old when a newer sibling exists.
+- **Scope to the Connection's provider type:** OpenAI, Anthropic, Azure OpenAI, Google AI, Vertex AI, or Vertex AI Anthropic — match the model lookup to the provider of the Connection the Route references.
+- **Verify before relying on it.** Model lineups move fast, so a name that looks valid may be out of date — after configuring the Route, exercise a flow path that uses it (e.g. an `inject` into an AI Generate / AI Tool node) and confirm a successful response in the debug output.
+
+This decision is often made when setting up a Connection and its Route on their own, separate from any flow — the same rule is carried as a hard rule in the `solai-cli` skill so it applies there too. See the [AI Routes docs](https://docs.contextual.io/documentation-and-resources/components-and-data/ai-routes) or the `solai-knowledge` skill for how Routes bind Connections to AI Generate / Tool nodes.
+
+---
+
 ## inject nodes — simulating trigger and action payloads
 
 Use `inject` nodes only when explicitly requested for manual testing in the Flow Editor. Never configure `inject` to automatically start or perform rapid repeated injection.
@@ -312,6 +345,20 @@ return msg;
 A `log-tap` after this node sees only the final shape of `msg.payload`. The `await logger.*` calls inside surface the *intermediate* state — sheet/row counts, per-row validation failures, the validation stage marker — that you'd otherwise have to reconstruct by re-running with different log-tap placements.
 
 `logger.debug(...)` is the only way to emit a `debug`-level entry from inside a function node that's visible in the editor sidebar — `node.log` cannot reach either surface.
+
+### "logs" vs. "logger" — two retrieval surfaces
+
+"logs" and "logger" are overloaded. When working in the Flow Editor, they almost always mean the **debug drawer** for the current editor session — read it with the `logger_messages` MCP tool. That surface is **ephemeral and editor-only**: it exists while the flow is open in the editor and reflects this session's runtime. It is distinct from **Tenant Logs** — the persistent emissions of running/deployed agents, retrieved with the `ctxl logs` CLI family in the `solai-cli` skill (and CLQL-queryable). CLQL applies to Tenant Logs only; it has no meaning for the debug drawer.
+
+| | Flow Editor logger (debug drawer) | Tenant Logs |
+|---|---|---|
+| Retrieve with | `logger_messages` (this MCP) | `ctxl logs` family (CLI, `solai-cli` skill) |
+| Lifetime / scope | Ephemeral; this editor session only | Persistent; tenant-wide, across runs |
+| CLQL | No | Yes (`--clql-file`) |
+
+**Routing:** in the editor, bare "check the logs/logger" → `logger_messages`. Switch to Tenant Logs only on explicit cues — "agent / deployed / prod / over the last hour / session id / query / CLQL." When context and cues conflict (e.g. a flow that's both open here *and* deployed), ask: "the editor's debug drawer for this session, or the tenant logs from the deployed agent?"
+
+Note: the same `await logger.*` / `log-tap` output can appear in **both** — the editor drawer during editor runs and Tenant Logs from deployed agent runs (see the logging table above) — so the question is which *retrieval surface* is wanted. And both are served by the same `ctxl` binary — `ctxl logs` is a direct command; the editor logger rides the `ctxl mcp serve` bridge — same binary, **distinct channels**; the shared origin is not a reason to treat them as one.
 
 ---
 
