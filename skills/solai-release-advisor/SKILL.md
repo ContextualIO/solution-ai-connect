@@ -185,6 +185,13 @@ The script:
 
 For each row where `working_version != released_version` or `tenant_max > working_version`, decide with the user whether to bump the working manifest's pin (cherry-pick that bump in) or hold off (defer to a later release).
 
+### Assess what a bump changes (net diff)
+
+Show the **net** pinned→target diff before deciding a bump — not the intermediary churn (versions introduced-then-reverted net out). Drop `_metaData` noise (`hash`, `updatedAt`, `version`, `recordCount` — the last is live row count, not schema) and report whether the change is **behavioral or cosmetic**.
+
+- **Records with an instance id** — flows, agents, connections, typed instances — diff directly: `ctxl recordversions diff native-object:<type-id>/<instance-id> <pinned>..<target> --format jsonpatch`.
+- **Type definitions** (`native-object:<type-id>`, no instance id) are a **temporary blind spot**: the CLI exposes no type-def version retrieval yet (the registry API supports it, but no `ctxl` command routes there). For the pinned→current case, reconstruct the diff — the **pinned** content is the dep's hydrated `.data` in the working manifest (`services get <svc> --with-data` hydrates each dep at its pinned version), and the **current** content is `ctxl types get native-object:<type-id>`; diff the two with `solai-cli`'s `scripts/json_diff.py`. **Never** use `types get native-object:<type-id>#<version>` for the pinned side — the `#version` is silently ignored and returns current (a false "no changes"). This holds until the CLI exposes type-def versions.
+
 ### Project the patch
 
 Before invoking `ctxl services patch`, project the patch and surface the resulting manifest. For each `--set-direct` / `--add-direct` flag the user agrees to, compute the resulting `dependencies.direct` list and show the diff against current.

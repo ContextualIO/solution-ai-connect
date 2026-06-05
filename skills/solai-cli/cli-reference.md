@@ -202,6 +202,8 @@ Type input gotchas:
 
 > `ctxl types list` returns custom object types only. To get the full schema of any type, custom or platform, use `ctxl types get native-object:<type-id>`. This is the authoritative source for enums, patterns, constraints, defaults, and relations.
 
+> `ctxl types get` returns the **current** type definition only — there is no CLI path to a prior type-def version. A `#version` fragment on the URI is **silently ignored** (returns current), and `recordversions` is keyed by instance id, which type defs don't have. (The registry API does expose type-def versions, but no `ctxl` command surfaces them yet.) To diff a type def across versions for a cherry-pick, compare the working manifest's hydrated `.data` (pinned) against `types get` (current).
+
 ## Record Versions
 
 When a type has versioning enabled, every write produces a numbered version. These commands operate on that history.
