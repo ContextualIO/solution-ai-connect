@@ -1,18 +1,18 @@
 ---
 name: solai-release-advisor
-description: Advise on the next release of a Contextual service you own — inspect which component bumps are available since the last release, preview the per-component change set, and shape the `services patch` cherry-pick before snapping the release in the workspace UI. Also answers read-only "what's owned / what changed?" inventory questions. Produces decision support only; the actual release snap / install / update is performed in the workspace UI. Requires local shell access and an authenticated `ctxl` config.
+description: Advise on the next release of a Contextual service you own — inspect which component bumps are available since the last release, preview the per-component change set, and compose the Build (pinning selected component versions via `services patch`) before snapping the release in the workspace UI. Also answers read-only "what's owned / what changed?" inventory questions. Produces decision support only; the actual release snap / install / update is performed in the workspace UI. Requires local shell access and an authenticated `ctxl` config.
 argument-hint: "[service-id]"
 ---
 
 # SolAI Release Advisor
 
-This skill wraps the `services` and `servicereleases` CLI surface (documented in `solai-cli/cli-reference.md`) to help plan the next release of a service **you own** — the per-component cherry-pick the platform UI does not yet assist with.
+This skill wraps the `services` and `servicereleases` CLI surface (documented in `solai-cli/cli-reference.md`) to help plan the next release of a service **you own** — composing the **Build** (the working manifest for the next Release Version) by pinning selected component versions, with the per-component change assessment (what a bump actually changes, behavioral vs cosmetic) that the Build tab does not surface.
 
 It produces structured decision support; it does not enact installs, updates, or release snaps. Those steps remain in the workspace web app today.
 
 ## When to use
 
-- Before **cutting a new release** of an owned service — to inspect which direct dependencies have bumps available since the last release, preview the per-component change set, and shape the `services patch` cherry-pick before snapping the release in the UI.
+- Before **cutting a new release** of an owned service — to inspect which direct dependencies have bumps available since the last release, preview the per-component change set, and compose the Build (pinning selected component versions via `services patch`) before snapping the release in the UI.
 - For lightweight inventory work ("what services exist / what changed?"), classify `ctxl services list` output without the full advisor flow.
 
 For raw CLI command shapes, defer to `solai-cli/cli-reference.md` (read it via the `solai-cli` skill rather than from the plugin path). This skill assumes the reference is available.
@@ -141,7 +141,7 @@ If the user wants to remove the allow-list after testing, the entries to remove 
 - This skill **never** runs `services patch` or any other write without explicit user confirmation that follows a diff/preview step.
 - This skill **never** claims to install, update, or publish a service. Those actions happen in the workspace UI; the skill produces the patch plan the user takes into that UI.
 - Always pass `--config-id <config-id>` on every `ctxl` command — never rely on `ctxl config use` alone.
-- Helper script in `scripts/` is the canonical implementation of the cherry-pick projection logic. Use it rather than hand-rolling per-command shell loops, especially when a service has many direct deps or any dep has many record versions — the script pre-summarizes output to bound context size.
+- Helper script in `scripts/` is the canonical implementation of the Build-composition projection logic. Use it rather than hand-rolling per-command shell loops, especially when a service has many direct deps or any dep has many record versions — the script pre-summarizes output to bound context size.
 - **Prefer `jq` over `python3 -c` for inline JSON parsing.** When you need to extract or transform a field from a `ctxl ...` response inline (e.g. `ctxl services list | jq '.items[].id'`), reach for `jq`. `jq` is read-only and typically allow-listed safely as `Bash(jq *)`; `python3 -c '...'` can execute arbitrary code and is a much broader allow-list surface. Reserve `python3 -c` for genuinely complex transformations that `jq` cannot express — and when you do use it, expect a per-invocation prompt unless the user has explicitly opted in to allow-listing it.
 - Apply `solai-cli`'s [Disallowed In This Skill](../solai-cli/cli-reference.md#disallowed-in-this-skill) list — this skill inherits those restrictions.
 
@@ -153,17 +153,17 @@ This skill covers the **owned-service** release path. Detect ownership via `sour
 ctxl services get <service-id> --with-data --config-id <config-id>
 ```
 
-- `sourceTenantId` **absent** → **owned** → use the [Cherry-pick advisor](#cherry-pick-advisor-owned-services) below.
+- `sourceTenantId` **absent** → **owned** → use the [Compose the Build](#compose-the-build-owned-services) advisor below.
 - `sourceTenantId` **present** → **installed** (the service was installed from another tenant — operating on it means acting against a *target* tenant, often production). **This build has no target-tenant workflow, and you must not improvise one.** Do **not** hand-roll update or pruning analysis: no interpreting `servicereleases --updates` / `updatediff`, no `recordversions` version-history checks, and no "what would be pruned" / hotfix-drift assessment. That analysis belongs to the forthcoming installed-service workflow and its helper script; done ad-hoc it is unreliable and dangerous — a correct pruning check must compare the incoming pinned version against each record's **actual version history in the target tenant** (not the manifest's pin), and getting it wrong yields a false "nothing will be pruned" that silently drops local hotfixes. State that target-tenant assessment isn't available in this build, that the install/update and its review happen in the workspace UI (least-privilege credentials, per your organization's policy for production or otherwise sensitive tenants), and **stop** — do not offer update inspection as a consolation. (Listing services and owned-service reads remain fine.)
 
 If the user asks for a service-wide inventory across the tenant without specifying an ID, start with `ctxl services list --include-total --config-id <config-id>`, classify each by `sourceTenantId`, and dig into an **owned** service.
 
-## Cherry-pick advisor (owned services)
+## Compose the Build (owned services)
 
-For an owned service, the next release is composed by:
+For an owned service, the next release is composed in two steps:
 
-1. **Cherry-picking component versions** into the working manifest via `ctxl services patch --set-direct <uri>#N` (or `--add-direct` / `--remove-direct`). This is the cherry-pick — the CLI is the authoring surface.
-2. **Snapping the release** in the workspace UI to produce an immutable release record.
+1. **Compose the Build** — pin component versions into the working manifest via `ctxl services patch --set-direct <uri>#N` (or `--add-direct` / `--add-peer` / `--remove-direct`). The CLI is the authoring surface; the core motion is selecting a version (not always the latest) for each component, occasionally adding or dropping a dep.
+2. **Snap the release** in the workspace UI to freeze the Build into an immutable release record.
 
 This skill helps with step 1.
 
@@ -183,7 +183,7 @@ The script:
 3. Diffs the two — surfaces direct deps where the working version differs from the released version, and per-dep, the actual current max version of that record in the tenant.
 4. Emits a compact table: `typeId | instanceId | released_version | working_version | tenant_max_version | suggested_action`.
 
-For each row where `working_version != released_version` or `tenant_max > working_version`, decide with the user whether to bump the working manifest's pin (cherry-pick that bump in) or hold off (defer to a later release).
+For each row where `working_version != released_version` or `tenant_max > working_version`, decide with the user whether to bump the working manifest's pin (pin that version into the Build) or hold off (defer to a later release).
 
 ### Assess what a bump changes (net diff)
 
@@ -217,7 +217,7 @@ ctxl services get <service-id> --with-data --config-id <config-id>
 
 Confirm the resulting `version` incremented and the dependency entries match expectations.
 
-**One change per call.** Apply a single `--set-direct` / `--add-direct` / `--add-peer` per `services patch`, and re-verify with `services get` before the next — don't batch multiple add/set flags in one call, since they may not all take effect. For a multi-dependency cherry-pick, walk the user through the bumps one at a time, patching and confirming each before moving on.
+**One change per call.** Apply a single `--set-direct` / `--add-direct` / `--add-peer` per `services patch`, and re-verify with `services get` before the next — don't batch multiple add/set flags in one call, since they may not all take effect. When composing a multi-dependency Build, walk the user through the bumps one at a time, patching and confirming each before moving on.
 
 ### Snap the release
 
@@ -229,7 +229,7 @@ Resolve `<tenant-id>` via `ctxl config current --json` — never leave it as a l
 
 One script lives under `scripts/` and bounds output size + guarantees consistent logic for the workflow above:
 
-- **`service_manifest_summarize.py`** — Compact manifest table for a service (current working manifest or a specific release), optionally diffed against another release. Strips inline `data` to keep output bounded. Used by the cherry-pick advisor for the candidate-bumps view and by routine inventory work.
+- **`service_manifest_summarize.py`** — Compact manifest table for a service (current working manifest or a specific release), optionally diffed against another release. Strips inline `data` to keep output bounded. Used by the Build-composition advisor for the candidate-bumps view and by routine inventory work.
 
 It takes `--config-id` and delegates auth to whatever the active `ctxl` config has set up; it performs no writes.
 

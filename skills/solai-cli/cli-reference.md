@@ -202,7 +202,7 @@ Type input gotchas:
 
 > `ctxl types list` returns custom object types only. To get the full schema of any type, custom or platform, use `ctxl types get native-object:<type-id>`. This is the authoritative source for enums, patterns, constraints, defaults, and relations.
 
-> `ctxl types get` returns the **current** type definition only — there is no CLI path to a prior type-def version. A `#version` fragment on the URI is **silently ignored** (returns current), and `recordversions` is keyed by instance id, which type defs don't have. (The registry API does expose type-def versions, but no `ctxl` command surfaces them yet.) To diff a type def across versions for a cherry-pick, compare the working manifest's hydrated `.data` (pinned) against `types get` (current).
+> `ctxl types get` returns the **current** type definition only — there is no CLI path to a prior type-def version. A `#version` fragment on the URI is **silently ignored** (returns current), and `recordversions` is keyed by instance id, which type defs don't have. (The registry API does expose type-def versions, but no `ctxl` command surfaces them yet.) To diff a type def across versions when composing a Build, compare the working manifest's hydrated `.data` (pinned) against `types get` (current).
 
 ## Record Versions
 
@@ -346,7 +346,7 @@ Apply the same discipline as `records patch` / `records replace`:
 4. Invoke `services patch ID ...` only after confirmation.
 5. Re-read with `services get <id> --with-data` and verify the resulting `version` and dependency state (the `dependencies` manifest appears only with `--with-data`).
 
-The `solai-release-advisor` skill provides a structured pre-patch advisor (cherry-pick mode); for ad-hoc patches via this skill, hand-roll the diff against `services get` output.
+The `solai-release-advisor` skill provides a structured pre-patch advisor (Build-composition mode); for ad-hoc patches via this skill, hand-roll the diff against `services get` output.
 
 ## Service Releases
 
@@ -426,7 +426,7 @@ The platform behaviour today does not warn at update time. Assessing it ahead of
 
 ### Routine workflow
 
-For pre-publish cherry-pick advice on a service you own, use the `solai-release-advisor` skill rather than orchestrating from raw CLI calls.
+For pre-publish Build-composition advice on a service you own, use the `solai-release-advisor` skill rather than orchestrating from raw CLI calls.
 
 ## Logs
 
