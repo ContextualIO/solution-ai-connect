@@ -63,6 +63,7 @@ Adds documentation and release-management tooling for the `services` and `servic
 - **`services patch` — one change per call.** Issue a single `--set-direct` / `--add-direct` / `--add-peer` per call and re-verify before the next; don't batch add/set flags in one call (they may not all take effect). (CTX-3563)
 - **CLQL `matches` vs glob.** Query-shape guidance: `*TERM*` glob for substring/contains; `_message matches` is anchored (a leading-wildcard pattern silently returns 0 for a term that is present); both are case-sensitive. (CTX-3522, CTX-3564)
 - **Installed-service hard-stop.** `solai-release-advisor` firmly stops on installed services and forbids improvising target-tenant update / pruning / hotfix-drift analysis — interim until the installed-service workflow ships. (CTX-3565)
+- **Cherry-pick net-diff guidance.** The advisor now shows the net pinned→target diff before a bump (records with an instance id via `recordversions diff`; type definitions via the `--with-data` manifest `.data` vs `types get`), drops `_metaData` churn, and reports behavioral vs cosmetic. Type-def version retrieval is flagged as a temporary CLI blind spot (the registry API supports it; no `ctxl` command surfaces it yet). (CTX-3451)
 
 ## [0.7.3] — 2026-05-15
 
