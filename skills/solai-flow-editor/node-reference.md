@@ -136,7 +136,7 @@ When setting the model on a Route, the identifier matters and dates quickly:
 - **Scope to the Connection's provider type:** OpenAI, Anthropic, Azure OpenAI, Google AI, Vertex AI, or Vertex AI Anthropic — match the model lookup to the provider of the Connection the Route references.
 - **Verify before relying on it.** Model lineups move fast, so a name that looks valid may be out of date — after configuring the Route, exercise a flow path that uses it (e.g. an `inject` into an AI Generate / AI Tool node) and confirm a successful response in the debug output.
 
-See the [AI Routes docs](https://docs.contextual.io/documentation-and-resources/components-and-data/ai-routes) or the `solai-knowledge` skill for how Routes bind Connections to AI Generate / Tool nodes.
+This decision is often made when setting up a Connection and its Route on their own, separate from any flow — the same rule is carried as a hard rule in the `solai-cli` skill so it applies there too. See the [AI Routes docs](https://docs.contextual.io/documentation-and-resources/components-and-data/ai-routes) or the `solai-knowledge` skill for how Routes bind Connections to AI Generate / Tool nodes.
 
 ---
 
