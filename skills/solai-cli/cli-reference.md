@@ -418,11 +418,11 @@ Both commands return `Cannot fetch updates for an owned service` on owned servic
 
 ### Update-time pruning of direct deps
 
-When a target tenant applies a service update, direct dependencies are reset to the versions pinned in the incoming release. Any version of a direct-dep record that exists in the target tenant **above** the incoming pinned version is **pruned** — those incremental versions (typically applied as hotfixes between updates) are lost. Versions **below** the incoming pinned version are preserved in the record's version history.
+When a target tenant applies a service update, direct dependencies are reset to the versions pinned in the incoming release. Any version of a direct-dep record that exists in the target tenant **above** the incoming pinned version is **pruned** — those incremental versions (typically applied as hotfixes between updates) are lost. Versions **below** the incoming pinned version are preserved in the record's version history. Separately, a direct dep that was present in a prior release but is **absent from the incoming release** (removed from the service) is removed from the target tenant at update — a fuller loss than a version reset.
 
 Peer dependencies are not subject to this pruning behaviour.
 
-The platform behaviour today does not warn at update time. Assessing it ahead of an update means reading the target tenant's current dependency versions against the incoming release (`servicereleases updatediff`, `recordversions diff`) — operate with least-privilege credentials and per your organization's policy for production or otherwise sensitive tenants, and apply the update itself in the workspace UI.
+At update time the workspace **now warns** about these potentially destructive outcomes before the update is applied — both the version pruning above and the complete removal of a dropped direct dep. To assess it ahead of that prompt, read the target tenant's current dependency versions against the incoming release (`servicereleases updatediff`, `recordversions diff`) — operate with least-privilege credentials and per your organization's policy for production or otherwise sensitive tenants, and apply the update itself in the workspace UI.
 
 ### Routine workflow
 
