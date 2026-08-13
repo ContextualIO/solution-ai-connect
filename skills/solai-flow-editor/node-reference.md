@@ -262,10 +262,22 @@ Distinct from `search-native-object` (above). Both query records of an Object Ty
 
 **The canonical "match all records" form (when `queryType: "json"`) is the literal two-character string `"{}"`.** Set this explicitly on import; do not ship the default.
 
-**`includeTotal: true` wraps the result in an envelope.** When `includeTotal: true`, `msg.payload` is no longer the records array — it's `{ "items": [...records], "totalCount": <n> }`. This is a silent foot-gun for any downstream `loop` node with default enumeration (`enumeration: "payload"`, `enumerationType: "msg"`): the loop enumerates the envelope's two keys (`items`, `totalCount`) instead of the records, running exactly twice regardless of record count. `validate` reports nothing; the flow returns 200; the only tell is the wrong per-pass count. To avoid:
+**Page size controls the output shape.** For the normal, non-source output mode:
+
+| Page size | Matches     | Output                       |
+| --------- | ----------- | ---------------------------- |
+| `>= 2`    | One or more | `{ "items": [...records] }`  |
+| `>= 2`    | Zero        | `{ "items": [] }`            |
+| `1`       | One         | The matching record directly |
+| `1`       | Zero        | `undefined`                  |
+
+For page sizes of `2` or greater, `includeTotal: true` adds a top-level `totalCount` to the envelope. When more pages exist, the envelope also includes `nextPageToken`. With `pageSize: 1`, the result never includes `items`, `totalCount`, or `nextPageToken`, even when `includeTotal: true`.
+
+**Passing the standard output of a Query Object node configured with a page size of `2` or greater directly to a downstream `loop` node configured to enumerate the whole message payload (`enumeration: "payload"`, `enumerationType: "msg"`) is a silent foot-gun.** The Loop iterates once per top-level property in the output envelope, not once per record in `msg.payload.items`. `validate` reports nothing, the flow can still return 200, and the only tell may be the wrong per-pass count. To iterate records:
 - Target the inner array on the loop: `enumeration: "payload.items"` (with `enumerationType: "msg"`)
-- Or set `includeTotal: false` on the query if you don't need the count
 - Or insert an unwrap function between query and loop: `msg.payload = msg.payload.items; return msg;`
+
+When **Unfold all pages to source** is enabled, the normal output table does not apply: each emitted message carries one record at the configured output path regardless of page size.
 
 See the Loop node section's silent-failure list for the generic diagnostic recipe.
 
@@ -439,9 +451,9 @@ upstream → loop.in
 
 **Silent failure modes to verify against:** missing iterable, empty array, wrong `kind`, missing feedback wire — all produce a clean port-0-only firing with no error, no catch, no warning. After importing or modifying a loop, **explicitly verify port 1 fires the expected number of times** before considering the loop functional.
 
-**Iterating an envelope's keys instead of an array.** A loop downstream of any record source can silently iterate the wrong thing if upstream wrapped its result in an envelope object. The default enumeration (`enumeration: "payload"`, `enumerationType: "msg"`) enumerates an object's keys when given an object — not the array inside. Common case: `query-native-object` with `includeTotal: true` returns `{items: [...], totalCount: <n>}`, so a downstream loop iterates exactly twice (`items`, `totalCount`) regardless of record count. `validate` reports nothing.
+**Iterating an envelope's keys instead of an array.** A loop downstream of any record source can silently iterate the wrong thing if upstream returns its records inside an envelope object. When configured with `enumeration: "payload"` and `enumerationType: "msg"`, the loop enumerates an object's keys when given an object — not the array inside. Common case: `query-native-object` with a page size of `2` or greater returns an envelope containing `items` and, conditionally, `totalCount` and `nextPageToken`. A downstream loop therefore runs one to three times — once per envelope property present — not once per record. It can even run once for an empty `items` array when the query matches no records. `validate` reports nothing.
 
-**Diagnostic recipe** (generic — applies any time a loop iterates a suspicious number of times after a record source): have the per-pass function log `msg.loop.key` and `Array.isArray(msg.payload)`. If `key` is a string like `items` / `totalCount` / `records`, the loop is enumerating an envelope's keys, not an array. Either target the inner array via `enumeration: "payload.items"` (or whatever the wrapper field is), or insert an unwrap function (`msg.payload = msg.payload.items; return msg;`) between the upstream node and the loop.
+**Diagnostic recipe** (generic — applies any time a loop iterates a suspicious number of times after a record source): have the per-pass function log `msg.loop.key` and `Array.isArray(msg.payload)`. If `key` is a string like `items` / `totalCount` / `nextPageToken` / `records`, the loop is enumerating an envelope's keys, not an array. Either target the inner array via `enumeration: "payload.items"` (or whatever the wrapper field is), or insert an unwrap function (`msg.payload = msg.payload.items; return msg;`) between the upstream node and the loop.
 
 **Minimal valid enumeration-loop import payload** (iterating `msg.payload`, item on `msg.payload` per pass):
 

@@ -4,6 +4,12 @@ All notable changes to the Solution AI Connect plugin are documented in this fil
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.5] — 2026-08-13
+
+### Fixed
+
+- Corrected earlier Query Object guidance shipped in the 0.7.4 build. The node reference now documents the `pageSize`-dependent flat-record and `{items}` output shapes, zero-match behavior, conditional `totalCount` and `nextPageToken` fields, the page-size-1 exception, source unfolding, and safe Loop enumeration of `payload.items`. ([CON-452](https://linear.app/contextualio/issue/CON-452/fix-conflicting-query-object-behavior-in-solutionai-connect-docs))
+
 ## [0.7.4] — 2026-06-04
 
 Adds documentation and release-management tooling for the `services` and `servicereleases` topics introduced in recent `@contextual-io/cli` builds, and ships a new `solai-release-advisor` skill: a pre-publish Build-composition advisor for services you own — inspect available component bumps since the last release, project the `services patch`, and compose the Build (pinning selected component versions) before snapping the release in the UI. Also documents the new `logs` topic (`ctxl logs`, `ctxl logs backlog`, `ctxl logs backlog flush`) and the `--fields` positive field-projection flag landed on every list command, with a safe-consumption discipline framing the logs surface as a passthrough for tenant-flow-emitted content (`log-tap` and similar nodes serialize what they receive without platform-side redaction — flows that log request/response objects naturally surface `Authorization` headers, bodies, and cookies, so agents project to the envelope with text tools before ingestion — `ctxl logs` emits line-formatted text, not JSON). Refreshes the MCP section for `@contextual-io/cli` 0.11 — the `--trace` verbosity flag on `ctxl mcp serve` and a new `ctxl mcp debug` connectivity diagnostic, hard-gated as a last resort so a missed approval dialog is recovered by re-triggering rather than chasing a diagnostic. Also documents the HTTP ingress payload-cap delta between the Flow Editor preview runtime (~2 MB) and a deployed `flow-http` agent runtime (40 MB). Primary tickets (CTX-3451, CTX-3522, CTX-3492); related to (CTX-3504), (CTX-3464), (CTX-3517).
