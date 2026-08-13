@@ -8,7 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Fixed
 
-- Corrected earlier Query Object guidance shipped in the 0.7.4 build. The node reference now documents the `pageSize`-dependent flat-record and `{items}` output shapes, zero-match behavior, conditional `totalCount` and `nextPageToken` fields, the page-size-1 exception, source unfolding, and safe Loop enumeration of `payload.items`. ([CON-452](https://linear.app/contextualio/issue/CON-452/fix-conflicting-query-object-behavior-in-solutionai-connect-docs))
+- Corrected earlier Query Object guidance shipped in the 0.7.4 build. The node reference now documents the `pageSize`-dependent flat-record and `{items}` output shapes, zero-match behavior, conditional `totalCount` and `nextPageToken` fields, the page-size-1 exception, source unfolding, and safe Loop enumeration of `payload.items`.
 
 ## [0.7.4] — 2026-06-04
 

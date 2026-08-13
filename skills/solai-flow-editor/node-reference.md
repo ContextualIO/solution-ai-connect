@@ -264,14 +264,17 @@ Distinct from `search-native-object` (above). Both query records of an Object Ty
 
 **Page size controls the output shape.** For the normal, non-source output mode:
 
-| Page size | Matches     | Output                       |
-| --------- | ----------- | ---------------------------- |
-| `>= 2`    | One or more | `{ "items": [...records] }`  |
-| `>= 2`    | Zero        | `{ "items": [] }`            |
-| `1`       | One         | The matching record directly |
-| `1`       | Zero        | `undefined`                  |
+| Page size | Matches     | Output                                 |
+| --------- | ----------- | -------------------------------------- |
+| `>= 2`    | One or more | `{ "items": [...records] }`            |
+| `>= 2`    | Zero        | `{ "items": [] }`                      |
+| `1`       | One         | The matching record directly           |
+| `1`       | Two or more | The first record returned by the query |
+| `1`       | Zero        | `undefined`                            |
 
-For page sizes of `2` or greater, `includeTotal: true` adds a top-level `totalCount` to the envelope. When more pages exist, the envelope also includes `nextPageToken`. With `pageSize: 1`, the result never includes `items`, `totalCount`, or `nextPageToken`, even when `includeTotal: true`.
+The flat-record output applies only when the evaluated numeric page size === 1. For indirect `pageSize` values (for example, `pageSizeType: "msg"`), `0` is treated as unset, and a value that cannot be converted to a number is likewise omitted from the request. In either case, the API's default page size applies, and the output remains an envelope.
+
+For page sizes of `2` or greater, `includeTotal: true` adds a top-level `totalCount` to the envelope. When more pages exist, the envelope also includes `nextPageToken`. With `pageSize: 1`, the node emits only the first record returned by the query and discards the response envelope, including `totalCount` and `nextPageToken`. The output therefore does not indicate whether additional matches exist. Configure `order` when it matters which matching record is returned.
 
 **Passing the standard output of a Query Object node configured with a page size of `2` or greater directly to a downstream `loop` node configured to enumerate the whole message payload (`enumeration: "payload"`, `enumerationType: "msg"`) is a silent foot-gun.** The Loop iterates once per top-level property in the output envelope, not once per record in `msg.payload.items`. `validate` reports nothing, the flow can still return 200, and the only tell may be the wrong per-pass count. To iterate records:
 - Target the inner array on the loop: `enumeration: "payload.items"` (with `enumerationType: "msg"`)
