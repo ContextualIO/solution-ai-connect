@@ -8,6 +8,8 @@ Node-specific configuration, rules, and patterns for the Contextual Flow Editor.
 
 `log-tap` replaces the `debug` node entirely. The `debug` node is **deprecated and non-functional** — never suggest or create debug nodes.
 
+**Do not log a whole `msg` (or `msg.req`, or an upstream response object).** Whatever a `log-tap` receives is serialized verbatim into Tenant Logs and the Flow Editor debug drawer with **no platform-side redaction** — a full `msg` carries headers including `Authorization`, and request/response objects carry bodies and cookies. All of that then persists and can be surfaced later to a human or an AI. Log keys and shapes, not whole objects; a `catch` handler should log a projected error summary (message, code, the fields you need), never the raw error `msg`. This is the emission side of the same discipline `ctxl logs` and `runnerstatus` carry on the consumption side.
+
 Available levels (confirmed from live tray — `type_info` does not enumerate these): `debug`, `info`, `warn`, `error`
 
 Default configuration:
@@ -85,6 +87,14 @@ Always use `type_info` to confirm the full property shape before importing any H
 
 ---
 
+## HTTP agents, base URLs, and routes
+
+A deployed HTTP agent serves **one flow** at **one base URL** — `https://<agent-id>.service.<tenant-id>.my.contextual.io` (shown as "Agent URL" on the agent's Definition tab; a custom domain can front it on plans that support one). Every `http-in` node in that flow is a route under that single origin.
+
+- **One web app = one HTTP flow + one agent, many `http-in` routes.** Splitting an app's endpoints across several HTTP flows deploys several agents, each with its own origin — fragmenting auth, cookies, cross-links, and CORS across subdomains, and multiplying always-on instances.
+- **Never chain internal steps by calling agent URLs.** A flow that POSTs to its own or a sibling agent's public URL routes internal work through the public front door: it holds the caller's request open, ties up instances on blocked self-calls, and carries gateway-timeout exposure. Internal hand-offs ride the event layer — record-write trigger or `send-to-agent` (see "One output, one path").
+- **`.flow.` hosts are the editor runtime, not a deployment.** A URL shaped `https://<flow-id>.flow.<tenant-id>.my.contextual.io` serves a flow only while a Flow Editor session is live, under editor-runtime limits. Anything production-facing targets the agent's `.service.` URL.
+
 ## `http-response` status code and header precedence
 
 The configured value on the `http-response` node is **authoritative** when set. Upstream `msg.statusCode` is silently ignored if the node's `statusCode` field has a non-empty literal.
@@ -127,6 +137,8 @@ The editor preview's lower cap is intentional — the editor runtime is provisio
 ## AI model selection (AI Routes)
 
 In the Contextual AI Gateway, **the model is selected on the AI Route — and only there.** An AI Connection carries the provider type, credentials, and endpoint (no model); AI Generate and AI Tool nodes reference an AI Route and inherit its model. There is no model field on a Connection or on a node — don't set or look for one there.
+
+**A Connection must carry `aiProvider` to be usable by a Route — and the type schema will not tell you.** The `api-configuration` type definition does not declare `aiProvider` (or `aiProviderData`) among its properties, but the AI Route picker only offers Connections that have one. A Connection created from the schema alone persists cleanly — and never appears in the Route's Connection picker, with no error anywhere. When creating an AI Connection, always set `aiProvider` to the provider type. Verify current requirements via the `solai-knowledge` skill (`components-and-data/connections/types-of-connections/ai-connections`) or the [AI Connections docs](https://docs.contextual.io/documentation-and-resources/components-and-data/connections/types-of-connections/ai-connections).
 
 When setting the model on a Route, the identifier matters and dates quickly:
 
@@ -327,7 +339,11 @@ Declare packages in `libs` and reference by the `var` name directly — do NOT u
 | `node.log(...)` | Never. Silently dropped — invisible in the editor sidebar and the persistent contextual log. |
 | `node.warn(...)` / `node.error(...)` | Avoid. Vestigial Node-RED contract: single-string only, no printf templating, no object args, no `debug` level. Strict subset of `logger.*` with worse ergonomics. |
 
-Function nodes do real in-process work using the platform's supported NPM library surface — file-format parsing (PDF, Excel, ZIP, XML, .msg email), JWT signing and JWKS verification, query expressions (JSONata, JSONPath), data transformations (lodash, date utilities), templating, crypto, JSON Patch construction, ID generation. Multi-step bodies have multiple distinct failure modes — parse errors, validation gaps, schema mismatches, missing fields — between any two seams a `log-tap` could sit at. `await logger.*` is the right surface for visibility into those failure modes from inside the body.
+Function nodes do real in-process work using the platform's supported NPM library surface — file-format parsing (PDF, Excel, ZIP, XML, .msg email), JWT signing and JWKS verification, query expressions (JSONata, JSONPath), data transformations (lodash, date utilities), templating, crypto, JSON Patch construction, ID generation. Multi-step bodies have multiple distinct failure modes — parse errors, validation gaps, schema mismatches, missing fields — between any two seams a `log-tap` could sit at. `await logger.*` is the right surface for visibility into those failure modes from inside the body. Confirm a package is on the platform allow-list before importing it (`ctxl agentmeta npmwhitelist` — see `cli-reference.md`).
+
+**npm packages load asynchronously — wait for the ready signal before using them.** Packages a function body imports must be retrieved, installed, and loaded before they can be called; using one before it is ready throws. In the **Flow Editor runtime**, the green **flow is ready** banner is that signal — until it appears, function nodes that import packages error, so wait for it before running or testing. The same readiness gates a **deployed agent** instance during a restart (see `SKILL.md` → "Saving and deploying"). The delay scales with package count and size — significant flows can take up to ~90 seconds.
+
+**A main-path event-flow function that emits nothing hangs the run.** If a function on the path to the terminal returns nothing at all — a bare `return null;` on a single-output node, or `return [null, null]` — no message reaches `contextual-end`, the event execution never resolves, and the instance stays busy on that message (visible as a populated `event` in `ctxl agents runnerstatus` — see `cli-reference.md` → "Agent runtime status"). This is a **hang**, distinct from the racing-branch data-drop (a silent loss). **Positional `null` on a multi-output function is fine** — `return [null, msg]` / `return [msg, null]` selects which output fires and is the normal way to route or branch inside a function; the only rule is that at least one emitted branch still reaches a terminal. So `return null` is a problem only when it leaves the main path with nothing flowing onward.
 
 **Connection-based interactions are strongly and almost always preferred over library-driven I/O inside function bodies.** Outbound work — HTTP, DB, LLM, agent dispatch — should go through the Connection-native nodes (`http-get`/`http-post`/..., `MSSQL`/`ODBC`/native-object nodes, AI Routes, `send-to-agent`). They handle auth via the configured Connection, give you uniform observability and error routing, and keep config centralized. Reach for an HTTP-capable library inside a function body only when the user has explicitly asked for it or there's a specific reason no Connection-native path covers (e.g. a library that composes a multi-step protocol in a way discrete nodes can't cleanly express). The function node's primary job is the in-process work *around* those calls.
 
@@ -480,6 +496,66 @@ upstream → loop.in
 ```
 
 Wire the per-pass handler chain so its terminal output wires back to this loop's id.
+
+---
+
+## One output, one path — the racing-branch trap
+
+Wiring a single node output to two paths (respond to the caller on one, do side work on the other) is a wiring the editor accepts — it lints a warning when one output feeds multiple wires — but it is not a valid execution pattern:
+
+- **Event flows:** in a deployed agent, the first message to reach `contextual-end` resolves the execution — the racing branch is not guaranteed to run. The editor preview does not reproduce this (event start/end are inert there). Same mechanism as the fan-out termination trap below.
+- **HTTP flows:** execution continues past the first `http-response`; when the racing branch reaches a second terminal it produces runaway catch loops ("Message exceeded maximum number of catches") and log floods.
+- **Logs are not exempt:** a log node dangling off a side branch is exactly the unreliable shape — under load its messages are lost. `log-tap` is designed to be wired inline on the main path.
+
+**Hand off instead:** respond fast, then (a) write a record whose trigger runs the work on an event agent — the platform's best "start background work" primitive — or (b) `send-to-agent` (section below). For parallel per-item processing inside one flow, use `split`/`join`. The narrow exception is a long-lived connection (e.g. outbound SSE) where the inbound request stays open until all work completes — and even there, the side branch is constructed inline and dispatched immediately, never left as a long-running task.
+
+---
+
+## `send-to-agent` — fire-and-forget hand-off to an event agent
+
+`send-to-agent` produces a message directly onto the target agent's topic. It is fire-and-forget with respect to processing: the sender waits only for broker acceptance — the send result is written to the node's `outputProperty`, and a failed produce is a catchable error — but no processing reply ever arrives on `msg`.
+
+- **Event agents only.** The target field accepts any agent id, but only an event (topic) agent consumes a topic. Targeting an HTTP or Cron agent produces a message nothing consumes — a silent no-op: no error, no validation warning, no delivery.
+- **`msg.headers` do not travel.** Only the payload and the headers configured on the node itself are forwarded — plus the log correlation id, which the platform forwards automatically so tracing survives the hop.
+
+**`send-to-agent` exercises the real event plane — including from an editor-runtime `inject`.** Because it produces to the target's topic, an `inject → send-to-agent` chain fired in the Flow Editor delivers a real message that a deployed event agent consumes and processes — a valid way to exercise or test a deployed event agent. (An `inject` wired directly into processing logic, with no `send-to-agent`, does nothing against a deployed agent — it only runs in the editor session.)
+
+---
+
+## `split` / `join` — fan-out and convergence
+
+`split` turns one message into a sequence of messages; `join` recombines a sequence into one. Configure both via the import / `node_update` export shape — their properties map directly to the import payload.
+
+### The termination trap (why fan-out must converge)
+
+**The first message to reach a `contextual-end` ends the entire flow execution.** A `split` emits N independent in-flight messages; if each branch reaches a `contextual-end`, the first to arrive terminates the flow and the remaining branches' in-flight work (e.g. per-item `create-native-object` calls) is silently dropped. The flow `validate`s clean, and **this does not reproduce in the Flow Editor preview** — it only drops data in a deployed agent. A per-item fan-out must **re-collapse to a single message before any terminal**:
+
+```
+split → per-item work → join (auto) → single contextual-end
+```
+
+`join` auto mode emits one combined message once it has received `parts.count` messages — that single message is the only one that reaches the terminal. (The same caution applies to any fan-out: a `loop` without its feedback wire, or one output wired to several terminals.)
+
+### `split` configuration & behavior
+
+- `property` (default `payload`) — which msg property to split; behavior is driven by that value's type:
+  - **array** → one message per element (`arraySplt:1`, default), or fixed-length chunks of `arraySplt` items;
+  - **string/buffer** → split on `splt` (default `\n`), by buffer, or by fixed length (`spltType`);
+  - **object** → one message per key/value pair (`addname` optionally copies the key onto a msg property such as `topic`).
+- Stamps **`msg.parts`** (`id`, `index`, `count`, `type`, `len`, `key`) — the metadata `join` auto mode relies on.
+- **Empty array → zero messages.** `split` of `[]` emits nothing, so everything downstream (any `join`, the terminal) never runs and the flow **hangs** — a different failure from the data-loss trap above. Guard with a `switch` before `split` that routes the empty case straight to the terminal.
+- **Streaming mode (`stream:true`) omits `parts.count` for string/buffer splits** (array and object splits always stamp `count`) → a streamed string/buffer sequence cannot be auto-joined.
+
+### `join` configuration & behavior
+
+- `mode`: **`auto`** (reverse a `split` via `parts` — the default, and the convergence answer), **`custom`** (the config value; the editor UI labels it "manual") — `build`: `string`/`buffer`/`array`/`object`/`merged`, combine by `joiner`/`count`/`key`, and **`reduce`** (JSONata accumulate). Set `mode: "custom"` in the import payload — `"manual"` is not a valid config value and silently falls back to `auto`.
+- **`auto` requires `msg.parts.id`** on incoming messages. If an intermediate node rebuilds `msg` wholesale and drops `parts`, auto-join cannot complete (it warns *"cannot join in 'auto' mode"*). Preserve `parts` through the per-item chain — mutate `msg.payload` and `return msg`; don't replace the whole object.
+- **`auto` mode has no timeout.** A stuck auto-join (e.g. a partial sequence) clears only via `msg.complete` (force-send the partial) or `msg.reset` (discard the partial) — and in auto mode that control message must itself carry `msg.parts.id`, since auto-join drops any incoming message lacking it. A configurable `count`/`timeout` exists **only in `custom` mode**.
+
+### When to use which
+
+- **`loop`** — sequential, ordered, per-item processing with a built-in single completion signal (port 0 fires once, even for zero iterations). Often the simpler choice for "do X for each item, then end once," and it has no empty-input stall.
+- **`split` / `join`** — fan-out where items flow independently; **always** pair `split` with a converging `join` (auto) before a single terminal.
 
 ---
 

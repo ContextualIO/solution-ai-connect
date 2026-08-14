@@ -462,7 +462,7 @@ Note: the same `logger.*` / `log-tap` emission can surface in both (drawer durin
 | `--since-time ISO8601` | Absolute ISO8601 zulu cutoff (e.g. `2026-05-28T17:00:00Z`). |
 | `-s, --sub-kind SUB-KIND` | Alternative to the positional `subKind` arg. |
 | `-t, --tail N` | Lines of recent logs to display. Default `-1` (all). Internal page-size is capped at 250. |
-| `-q, --clql-file FILE` | Server-side CLQL query read from a file. Filters at the source — this is the precise-filter mechanism for logs, since `ctxl logs` output is text and not `jq`-parseable. **Pass a real file path, not `-`:** the stdin form (`-q -`) silently returns nothing (the stdin read never fires `end`, so the await dangles) — tracked in CTX-3567. CLQL syntax is evolving and not pinned here: look it up via the `solai-knowledge` skill (`tenants/tenant-logs/contextual-log-query-language-clql`) or [the CLQL docs](https://docs.contextual.io/documentation-and-resources/tenants/tenant-logs/contextual-log-query-language-clql). |
+| `-q, --clql-file FILE` | Server-side CLQL query read from a file, or from stdin when the value is `-` (e.g. `printf '*TERM*' | ctxl logs -q - …`). Filters at the source — this is the precise-filter mechanism for logs, since `ctxl logs` output is text and not `jq`-parseable. CLQL syntax is evolving and not pinned here: look it up via the `solai-knowledge` skill (`tenants/tenant-logs/contextual-log-query-language-clql`) or [the CLQL docs](https://docs.contextual.io/documentation-and-resources/tenants/tenant-logs/contextual-log-query-language-clql). |
 | `--pretty` | Renders `message` via Node `util.inspect` (`%o`) instead of `JSON.stringify`. Does **not** make output `jq`-parseable (and expands `message` to multiple lines) — see the note under [Output line format](#output-line-format). |
 
 ### CLQL query shape — `matches` vs glob
@@ -677,6 +677,8 @@ After edits, re-read the flow and verify the change actually landed.
 
 ## MCP
 
+The **Ctxl Tool desktop app** (macOS and Windows) is the typical way users run and manage Flow Editor MCP servers: tenant-specific servers behind a single local proxy on port `5051`, with start/stop and CLI-config visibility in a desktop UI. Installs from [build-artifacts.contextual.io](https://build-artifacts.contextual.io) (macOS alternative: `brew install --cask contextualio/tap/ctxl-tool`). When a Flow Editor MCP connection misbehaves, the first checks are the app (is the tenant's server running?) and an `/mcp` → reconnect in the agent session — ahead of any terminal diagnostics below. The commands in this section are the terminal path for environments without the app.
+
 - `ctxl mcp serve [INTERFACE] [-f FLOW-ID] [-p PORT] [-t] [-V] [--trace] [-C CONFIG-ID]`
 
 Default interface is `flow-editor`. Default port is `5051`.
@@ -702,11 +704,40 @@ Runs a one-shot websocket diagnostic against SolutionAI and prints a JSON report
 
 **Scope — this is a connectivity diagnostic, not a fix for a missed approval dialog.** Reach for it only when the socket/manifest/bind chain itself is suspect (no dialog ever appears across repeated attempts, repeated socket errors, or calls still fail *after* the user confirms they accepted). A dialog the user simply didn't notice is recovered by re-triggering the call and watching the sidebar — see the MCP hard rules in [SKILL.md](SKILL.md#hard-rules-for-mcp).
 
+## Agent metadata
+
+Read-only metadata for authoring and sizing agents. All three are authenticated GETs to the agents API, print compact JSON (`--pretty` to expand), take no arguments, and require `@contextual-io/cli` 0.13.0 or later.
+
+- `ctxl agentmeta sizes` — the available agent sizes (`Small` through `XX-Large`), each with its Kubernetes CPU/memory requests and limits. Use to choose a `size` when creating or resizing an agent.
+- `ctxl agentmeta images` — the available agent image versions (e.g. `5.17.2`).
+- `ctxl agentmeta npmwhitelist` — the npm packages available to function nodes (the platform allow-list). **Confirm a package appears here before writing a function body that imports it** — an unlisted package is not available at runtime.
+
+> **npm packages affect startup and readiness.** Packages a flow's function nodes import are retrieved, installed, and loaded before they can be used, and until they are ready calling them throws. In the Flow Editor runtime, readiness is signaled by the green **flow is ready** banner; in a deployed agent, a new instance is not marked ready until its packages are loaded (the previous instance keeps serving until then, so a live agent never runs with unloaded packages). The delay scales with package count and size — significant flows can add up to ~90 seconds to editor load or instance restart. See `solai-flow-editor` → node-reference (function nodes) and SKILL.md ("Saving and deploying").
+
+## Agent runtime status
+
+Inspect a running agent's instances and per-instance runner state — the troubleshooting surface when an event or cron agent seems stuck. Both require `@contextual-io/cli` 0.13.0 or later and are authenticated read-only GETs (compact JSON; `--pretty` to expand).
+
+- `ctxl agents instances <agent-id>` — the agent's running instances (pods): `name`, `status` (`Running`, starting, …), `createdAt`, `startedAt`. A stopped agent returns `{ "items": [] }`. **Get instance (pod) names from here — never construct them.**
+- `ctxl agents runnerstatus <agent-id> <instance>` — the runner state for one instance. **Event and cron agents only** — HTTP agents have no runner status. `<instance>` is a pod name from `agents instances`.
+
+**Reading runner status.** A ready, idle instance returns `{}`. While a message is being processed the body is `{ event, eventReceivedAt, eventTopic, eventPartition, eventHeaders, lastReceivedNode, lastCompletedNode }`, cleared back to `{}` on completion. So:
+
+- `{}` = the instance is ready and idle — **not** stuck.
+- A **populated `event` with a stale `eventReceivedAt` and a `lastCompletedNode` that is not the flow's terminal** = a message wedged at that node (e.g. a top-level `return null;` in an event function never reaches `contextual-end`, so the run never resolves and the instance stays busy). `lastReceivedNode` / `lastCompletedNode` name where it stopped.
+- Across instances, only the pod that consumed the wedged message shows a populated `event`; the rest are `{}`. Check each to find the stuck one.
+
+**Error shapes:** an unknown/stale pod name → HTTP 500 wrapping a Kubernetes `NotFound`; a pod that is not yet ready → HTTP 400 `Pod <namespace>/<pod> not ready`. Source pod names from `agents instances`.
+
+> **`runnerstatus` is msg-bearing — project, don't dump.** `event` and `eventHeaders` are the raw in-flight message, unredacted — they can carry `Authorization` headers, PII, or secrets (the trigger payload is the record frozen at event time; node-configured headers ride as message properties). Treat it like `ctxl logs`: for a stuck diagnosis, project to the non-payload fields (`jq '{eventReceivedAt, eventTopic, lastReceivedNode, lastCompletedNode}'`), and inspect `event` by keys first (`jq '.event | keys'`), pulling a specific field only with explicit intent. Never surface the whole `event` / `eventHeaders` into an AI's context.
+
+**No CLI restart.** There is no `agents restart` verb; the workspace UI's per-pod Restart deletes the pod and lets Kubernetes recreate it under `minReplicas`. Deleting a pod wedged on a bad message just re-hangs the fresh one (the message is redelivered) — the fix is to correct the flow and repin the agent, not restart the pod.
+
 ## Object Type Schemas
 
-### Envelope for `ctxl types add`
+### Envelope for `ctxl types add` / `types replace`
 
-`ctxl types add` requires a record envelope that wraps the JSON schema. The schema documents what the data looks like; the envelope tells the platform how to register and display the type. Sending only the inner schema produces a 400 with missing-field errors for `display`, `defaultListStyle`, `objectType`, `features`.
+`ctxl types add` and `ctxl types replace` both require a record envelope that wraps the JSON schema. The schema documents what the data looks like; the envelope tells the platform how to register and display the type. Sending only the inner schema produces a 400 with missing-field errors for `display`, `defaultListStyle`, `objectType`, `features`. The same envelope applies on `replace` — a `replace` that carries only the schema, or drops `"type": "custom"`, hits the failure modes described in the two callouts below.
 
 Minimum envelope shape:
 
@@ -734,10 +765,14 @@ Allowed values for the four envelope keys most commonly missed:
 |---|---|---|
 | `display` | `"default"` \| `"pinned"` \| `"setting"` \| `"component"` \| `"security"` | How the type appears in the platform UI list/picker. `"default"` for typical custom types. |
 | `defaultListStyle` | `"table"` \| `"card"` | Default list rendering when browsing records. |
-| `objectType` | `"internal"` (native-object — typical) \| `"external"` (platform-managed external source) | Who owns the data lifecycle. Use `"internal"` unless you specifically need an external-managed type. |
+| `objectType` | **always `"internal"`** here | `"internal"` is a normal native-object — flows, the CLI, and Native Object nodes read and write it. `"external"` is a specialized Tenant-API source and is not authored through the CLI (see callout below). |
 | `features.auditTrail.enabled` / `features.version.enabled` | boolean (typically `false`) | Feature toggles for audit trail and versioning. |
 
 The `schema` field then carries the JSON Schema described below.
+
+> **Always send `objectType: "internal"`. Do not author `external` object types through the CLI.** An `external` type is a specialized Tenant-API construct whose CRUD is gated behind explicitly configured per-operation access rules — without those rules every operation fails with `No rule for [<op>] found.` (`list`, `read`, `create`, and the rest each need their own rule), and configuring those rules is outside the CLI and flow-authoring surface this plugin covers. Any type that a flow, the CLI, or a Native Object node reads or writes must be `"internal"`. A `types replace` that sets `"external"` lands cleanly and only fails on the next record operation, so the breakage surfaces away from its cause. To recover a type set to `"external"`, `ctxl types replace` it back to `"internal"` (with `"type": "custom"` present) — CRUD resumes on the next call.
+
+> **An `objectType` validation error is usually a missing `type`, not an `objectType` problem.** A 400 whose errors include `$.objectType - Invalid input: expected "external"` (or `expected "internal"`) while the payload sent a *valid* `objectType` value means `"type": "custom"` is missing. The envelope is a plain union of an `internal` branch and an `external` branch, each pinned by a literal `objectType`; with `type` absent, the union aggregates *every* branch's failure — including an `$.objectType` line naming the value opposite to the one you sent. The same 400 also carries the real signal — `$.type - Invalid option: expected one of "system"|"custom"` — and that is the field to fix. Add `"type": "custom"`. Do not flip `objectType` to satisfy the misleading line — doing so is what produces an unintended `external` type and the CRUD breakage above.
 
 ### Inner schema rules
 

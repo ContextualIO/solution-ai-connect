@@ -251,6 +251,8 @@ Important write gotchas:
 - `ctxl records add` expects JSONL (one JSON object per line), not pretty-printed JSON.
 - `primaryKey` on an Object Type is immutable once deployed — get it right before the first `ctxl types add`.
 - Every record gets a `_metaData` envelope from the platform automatically. Never include `createdAt`, `updatedAt`, `hash`, `version`, or `secrets` in a schema.
+- AI Connections (`api-configuration` records) must include `aiProvider` (the provider type) even though the type schema does not declare it — the AI Route picker only offers Connections that carry one. A Connection created without it persists cleanly and silently never appears in the picker. Verify current requirements via the `solai-knowledge` skill (`components-and-data/connections/types-of-connections/ai-connections`) or the [AI Connections docs](https://docs.contextual.io/documentation-and-resources/components-and-data/connections/types-of-connections/ai-connections).
+- `ctxl types add` and `ctxl types replace` take the full type-registration envelope, not just the schema. Always include `"type": "custom"` and `"objectType": "internal"`. Author only `"internal"` types — never `"external"`, which has no flow/CLI/Native-Object-node CRUD until per-operation access rules are configured. If a `types` write returns a 400 naming `$.objectType` (e.g. `expected "external"`) while you sent a valid value, the missing field is `"type": "custom"` — add it and leave `objectType` as `"internal"`; do not change `objectType`. Full envelope and rationale: `cli-reference.md` → Object Type Schemas.
 
 ## Flow Work
 

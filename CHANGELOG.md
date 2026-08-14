@@ -4,6 +4,75 @@ All notable changes to the Solution AI Connect plugin are documented in this fil
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.6] — 2026-08-14
+
+A broad hardening pass across the flow-editor and CLI skills: safer flow topology (fan-out convergence, the racing-branch trap, HTTP-vs-event roles), object-type authoring, `send-to-agent` semantics, the Save-vs-Deploy lifecycle, the Ctxl Tool desktop app as the MCP-management surface, tool-argument discipline, and several corrections to guidance that had drifted from platform behavior. Also documents the `@contextual-io/cli` 0.13.0 `agentmeta` surface (agent sizes, images, npm allow-list), how npm-package readiness affects Flow Editor and agent startup, and the `agents instances` / `runnerstatus` surface for troubleshooting stuck event/cron agents. Primary tickets: CTX-3583, CTX-3585, CTX-3591, CTX-3547, CTX-3555, CTX-3556, CON-273, CON-459, CON-460, CON-462, CON-464, CON-465, CON-466, CON-467, CON-468, CON-469, CON-470, CON-471, CON-472, CTX-3570.
+
+### Added
+
+#### `AGENTS.md`
+
+- **Runtime model — "HTTP is the front door; the event fabric is the hallway."** Always-loaded framing: HTTP agents serve the outside world; internal dispatch (background / long-running work) rides the event layer via a record-write trigger or `send-to-agent`, never an internal HTTP call between a solution's own agents. (CON-464)
+
+#### `skills/solai-flow-editor/node-reference.md`
+
+- New **"One output, one path — the racing-branch trap"** section. One output wired to two paths is not a valid execution pattern: in a deployed event agent the first message to reach `contextual-end` resolves the run and the racing branch is not guaranteed to fire (the editor preview does not reproduce it); on an HTTP lane, execution past the first `http-response` produces runaway catch loops. `log-tap` belongs inline; hand off async side effects via a record trigger or `send-to-agent`. (CTX-3591, CON-465)
+- New **"`send-to-agent` — fire-and-forget hand-off to an event agent"** section. Produces onto the target agent's topic; **event agents only** — targeting an HTTP or Cron agent is a silent no-op (nothing consumes it, no error). `msg.headers` do not travel — only node-configured headers, plus the auto-forwarded log correlation id. The broker send result is written to the node's `outputProperty`. (CON-465)
+- New **"`split` / `join` — fan-out and convergence"** section: the termination trap (first message to `contextual-end` ends the whole flow; validates clean; does not reproduce in preview), the convergence pattern (`split` → per-item work → `join` auto → single terminal), `split`/`join` configuration, and `loop` vs `split`/`join` selection. (CTX-3591)
+- New **"HTTP agents, base URLs, and routes"** section. A deployed HTTP agent serves one flow at one base URL (`https://<agent-id>.service.<tenant-id>.my.contextual.io`; a custom domain can front it on supporting plans); every `http-in` node is a route under that origin. One web app = one HTTP flow + one agent + many routes — not one flow per endpoint, and never internal hops through public agent URLs. `.flow.` hosts are the editor runtime, not a deployment. (CON-467)
+- **AI Connections require `aiProvider`.** The `api-configuration` type schema does not declare it, but the AI Route picker only offers Connections that carry one; a Connection created from the schema alone persists cleanly and silently never appears in the picker. (CON-466)
+
+#### `skills/solai-flow-editor/SKILL.md`
+
+- New **"Saving and deploying"** section. Save persists committed editor changes as a new flow version (via `flow_save`; no-ops when nothing is unsaved; returns status only; persists asynchronously) — call it only on user request or a standing session grant, never as a reflex. Deploy pins an agent to a flow version (`<flow-id>#<version>`); repinning triggers a rolling restart (30–90+ seconds; longer for npm-heavy flows and cold pods; cron agents are not restarted). Instance status lives on the agent's Operations tab. A new instance is not ready until its npm packages load — the main driver of restarts nearing 90 seconds — and the old instance serves until then. (CON-462)
+- New **"Tool argument discipline"** section: inspect a tool's parameter schema before its first use in a session; for nullable parameters, omit rather than pass a literal `null` (text-encoded args deliver a bare `null` as the string `"null"`, which errors on object/array/number types and silently corrupts string types); on the first invalid-arguments error, re-read the type union and fix by omission. (CON-459)
+- New **"Searching code across nodes"** section: `code_grep` `searchScope` (`node` / `tab` / `subflow` / `all`) and the find-references pattern — one scoped call instead of repeated single-node passes. (CTX-3585)
+
+#### `skills/solai-cli/cli-reference.md`
+
+- **§MCP gains a Ctxl Tool desktop-app intro.** The app is the typical way users run and manage Flow Editor MCP servers (tenant-specific servers behind a `localhost:5051` proxy) and CLI configs; the app check and an `/mcp` reconnect come before terminal diagnostics. (CON-460)
+- New **"Agent runtime status"** section documenting the `@contextual-io/cli` 0.13.0 read-only commands `ctxl agents instances` (running instances/pods) and `ctxl agents runnerstatus` (per-instance runner state; event/cron agents only) — how to read a stuck agent (`{}` = idle; a populated `event` with a non-terminal `lastCompletedNode` = wedged there), the error shapes, no-CLI-restart, and a **msg-bearing safe-consumption** callout: `runnerstatus` exposes the raw in-flight event/headers, so project to the diagnostic fields and never dump `event`/`eventHeaders` into an AI's context. (CON-468)
+- New **"Agent metadata"** section documenting the `@contextual-io/cli` 0.13.0 read-only commands `ctxl agentmeta sizes` (agent sizes with CPU/memory), `agentmeta images` (agent image versions), and `agentmeta npmwhitelist` (packages available to function nodes — confirm before importing). Includes an **npm-readiness** callout: imported packages are retrieved/installed/loaded before use and throw until ready; the Flow Editor shows a green **flow is ready** banner, and a deployed agent's new instance is not ready until packages load (the old instance serves until then — no live agent runs with unloaded packages); the delay scales with package count/size, up to ~90 seconds. (CTX-3547, CTX-3555, CTX-3556)
+
+#### `README.md`
+
+- New **"Companion app — Ctxl Tool"** section (macOS / Windows desktop companion that runs and manages Flow Editor MCP servers and CLI configs; installs from `build-artifacts.contextual.io` or the Homebrew cask). (CON-460)
+- **"Publishing Updates" gains "Release flow and tagging"** — the `release/x.y.z` branch → PR shape (bump as the closing commit) and the annotated `vX.Y.Z` tag convention.
+
+### Changed
+
+#### `skills/solai-flow-editor/SKILL.md`
+
+- **Setup Check rewritten** around the Ctxl Tool proxy model: tenant-prefixed tool names (`mcp__ctxl-flow-editor__<tenant>__…`), tool churn as normal server lifecycle (not an error), and a recovery ladder — check the app → `/mcp` reconnect → terminal `ctxl mcp serve` fallback. (CON-460)
+- **Tray guidance updated to auto-open.** `tray_read` auto-opens the target tray, so the open-first workaround is removed; switching to another node's tray auto-commits pending edits (a session-level commit, not a flow Save). (CON-273)
+- **Flow-patterns and the one-wire-per-output-port rule** carry the racing-branch runtime rationale and the front-door / hallway framing. (CTX-3591, CON-464)
+- **"Editing code" hardened** — read-before-edit is a rule; `code_edit` batches are atomic all-or-nothing (a non-matching `oldString` rolls back the whole batch; recovery is re-read and resubmit). (CTX-3585)
+- **"Secret- and msg-bearing surfaces — project, don't dump"** added to Important behaviors — dual-homes the CLI secret-handling discipline (Connection credentials, agent env vars) into the flow-editor skill and extends it to msg-bearing surfaces (`log-tap` / Tenant Logs, `runnerstatus`): request non-secret fields, never read secrets back to verify, project before surfacing into context. (CON-469)
+
+#### `skills/solai-flow-editor/node-reference.md`
+
+- **`join` mode corrected to `custom`** (the config value; the editor UI labels it "manual"), with the five `build` options including `buffer`; `mode: "manual"` is not a valid config value and silently falls back to `auto`. (CTX-3591)
+- **Streaming `parts.count` scoped** — omitted only for string / buffer splits; array and object splits always stamp `count`. Auto-mode `msg.complete` must itself carry `msg.parts.id`. (CTX-3591)
+- **Split / join trays open over MCP** — the prior "trays are not openable" note is removed (auto-open shipped). (CON-273)
+- **`contextual-error` on inject-driven test tabs** draws the `no-unconnected-event-nodes` lint error; terminate the catch chain at the error `log-tap` on such tabs. (CON-466)
+- **A main-path event-flow function that emits nothing hangs the run** — a bare `return null;` (single output) or `return [null, null]` leaves nothing flowing onward, so no message reaches `contextual-end`, the execution never resolves, and the instance stays busy (a hang, distinct from the racing-branch data-drop). Positional `null` on a multi-output node (`return [null, msg]`) is normal routing and fine, as long as an emitted branch reaches a terminal. (CON-472)
+- **`log-tap` emission-risk note** — logging a whole `msg` / `msg.req` / response object serializes headers (incl. `Authorization`), bodies, and cookies verbatim into Tenant Logs and the debug drawer with no redaction; log keys and shapes, and a `catch` should log a projected error summary, not the raw `msg`. (CON-470)
+- **`send-to-agent` exercises the real event plane, including from an editor-runtime `inject`** — `inject → send-to-agent` is a valid way to test a deployed event agent; only an `inject` wired directly into logic (no `send-to-agent`) does nothing against a deployed agent. (CON-471)
+
+#### `skills/solai-cli/cli-reference.md`
+
+- **§Object Type Schemas now covers `ctxl types replace`** alongside `types add` (same envelope; a `replace` that drops `"type": "custom"` hits the same failure modes); the `objectType` row is always `"internal"`; two callouts — do not author `external` through the CLI, and an `$.objectType` error on a valid value means a missing `"type": "custom"` (the same 400 also carries the real `$.type - Invalid option` signal; the envelope is a plain union, not discriminated on `type`). (CTX-3583)
+- **AI Connection `aiProvider` requirement** documented alongside the AI-Route model-selection guidance. (CON-466)
+- **`ctxl logs -q -` (CLQL via stdin) documented as working** — the interim "pass a real file path, not `-`" caveat is removed following the CLI fix. (CTX-3570)
+
+#### `skills/solai-cli/SKILL.md`
+
+- Write-gotchas gain the full type-registration envelope rule (`"type": "custom"` + `"objectType": "internal"`, never `external`) and the `aiProvider` requirement for AI Connections. (CTX-3583, CON-466)
+
+#### `skills/solai-data-modeler/SKILL.md`
+
+- New **"Internal native-object types only"** subsection — the designed schema is the inner body of an `"internal"` type; envelope assembly is deferred to `/solai-cli`. (CTX-3583)
+
 ## [0.7.5] — 2026-08-13
 
 ### Fixed

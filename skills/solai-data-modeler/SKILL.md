@@ -93,6 +93,11 @@ Do not mark these as required.
 ### Not supported
 - Contextual does not support indexed/index fields — if a user asks about indexing, decline to add it and suggest they contact Contextual if indexing is a needed feature
 
+### Internal native-object types only
+- The schema you design is the inner `schema` body of an **internal** native-object type. At deploy time the `/solai-cli` skill wraps it in the type-registration envelope, which always sets `"type": "custom"` and `"objectType": "internal"`.
+- Do not design for, or set, `"objectType": "external"`. External types are a specialized Tenant-API construct with no normal flow / CLI / Native Object node CRUD and no schema-authoring path here. Every type designed with this skill is `"internal"`.
+- Hand off the inner schema and let `/solai-cli` author the envelope — do not assemble the envelope here. See `solai-cli/cli-reference.md` → Object Type Schemas for the envelope shape.
+
 ## Documentation references
 
 Use the `solai-knowledge` skill to verify platform behaviour before proposing anything uncertain. Prefer these specific doc paths:
