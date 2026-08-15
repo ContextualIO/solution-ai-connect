@@ -32,6 +32,10 @@ Work with Contextual from Claude using four skills:
 - `agents/` - Contextual subagents (solution-architect, plan-flow, flow-editor, data-modeler, docs-reader, seed-builder) — see `docs/agents.md` for the full workflow
 - `docs/agents.md` - agent lineup, workflow, and per-project suppression guide
 
+## Companion app — Ctxl Tool
+
+[Ctxl Tool](https://build-artifacts.contextual.io) (macOS and Windows) is Contextual's desktop companion to the `ctxl` CLI: it runs and manages local Flow Editor MCP servers — tenant-specific servers behind a single proxy on `localhost:5051` — and gives CLI configs a visible UI. The `solai-flow-editor` skill treats the app as the typical way the MCP server is run, with terminal `ctxl mcp serve` as the fallback. macOS: `brew install --cask contextualio/tap/ctxl-tool`.
+
 ## Install
 
 The flow is two steps: add this repo as a plugin marketplace, then install the plugin from it. You only need the marketplace-add step once per machine.
@@ -137,6 +141,21 @@ Bump `.claude-plugin/plugin.json` version on every meaningful content change. Pr
 - Major (`x+1.0.0`) — breaking changes to skill interface or hard rules.
 
 **When in doubt, patch.** A small bump ships fast; batching causes users to run stale content longer than necessary.
+
+### Release flow and tagging
+
+Each release lands as a single `release/x.y.z` branch → pull request: content changes plus the `plugin.json` version bump and the `CHANGELOG.md` section, with the bump as the closing commit so the merge commit is a clean release anchor.
+
+After the release PR merges, tag the merge commit and push the tag:
+
+```bash
+git tag -a vX.Y.Z <merge-commit> -m "X.Y.Z — <one-line summary>"
+git push origin vX.Y.Z
+```
+
+- Use **annotated** tags (`-a`), named `vX.Y.Z` to match the `plugin.json` version.
+- Push tags **by explicit name**, not `git push --tags`.
+- Tags are navigation aids (`git diff vX.Y.Z..vA.B.C`, `git checkout`); the marketplace resolves the plugin from `plugin.json`, not from tags, so tagging never changes how the plugin installs or updates.
 
 ## Contributing
 

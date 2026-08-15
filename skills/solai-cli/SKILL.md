@@ -251,6 +251,8 @@ Important write gotchas:
 - `ctxl records add` expects JSONL (one JSON object per line), not pretty-printed JSON.
 - `primaryKey` on an Object Type is immutable once deployed — get it right before the first `ctxl types add`.
 - Every record gets a `_metaData` envelope from the platform automatically. Never include `createdAt`, `updatedAt`, `hash`, `version`, or `secrets` in a schema.
+- AI Connections (`api-configuration` records) must include `aiProvider` (the provider type) even though the type schema does not declare it — the AI Route picker only offers Connections that carry one. A Connection created without it persists cleanly and silently never appears in the picker. Verify current requirements via the `solai-knowledge` skill (`components-and-data/connections/types-of-connections/ai-connections`) or the [AI Connections docs](https://docs.contextual.io/documentation-and-resources/components-and-data/connections/types-of-connections/ai-connections).
+- `ctxl types add` and `ctxl types replace` take the full type-registration envelope, not just the schema. Always include `"type": "custom"` and `"objectType": "internal"`. Author only `"internal"` types — never `"external"`, which has no flow/CLI/Native-Object-node CRUD until per-operation access rules are configured. If a `types` write returns a 400 naming `$.objectType` (e.g. `expected "external"`) while you sent a valid value, the missing field is `"type": "custom"` — add it and leave `objectType` as `"internal"`; do not change `objectType`. Full envelope and rationale: `cli-reference.md` → Object Type Schemas.
 
 ## Flow Work
 
@@ -414,7 +416,7 @@ All other tools are dynamically loaded from SolutionAI's tool manifest for the `
 ### Hard rules for MCP
 
 - **Never run `ctxl mcp serve` yourself.** The server must be started by the user in their own persistent terminal — any process the agent starts via shell is ephemeral and dies immediately. It cannot serve MCP tools.
-- **If `mcp__ctxl-flow-editor__*` tools appear in the deferred tool list, the server is already running.** Do not start another one. Load the tool schemas and call `info`/`list_sessions` to verify the connection. If the tools are not in the deferred list, tell the user to run `ctxl mcp serve --config-id <config-id>` in their own terminal.
+- **If `mcp__ctxl-flow-editor__*` tools appear in the deferred tool list, the server is already running.** Do not start another one. Load the tool schemas and call `info`/`list_sessions` to verify the connection. If the tools are not in the deferred list, the server isn't connected: for **Ctxl Tool desktop** users, ask them to confirm the tenant's server is running in the app and, if it is, run `/mcp` → reconnect the Flow Editor MCP; **app-less** users run `ctxl mcp serve --config-id <config-id>` in their own terminal. See `cli-reference.md` → MCP.
 - Do not start the MCP server if the user has not logged in.
 - The server locks to the active config's tenant and silo at startup. Switching configs with `ctxl config use` while the server is running has no effect. If the user needs to target a different tenant, the server must be stopped and restarted with the new config.
 - Do not change the default port unless the user requests it or port 5051 is occupied.

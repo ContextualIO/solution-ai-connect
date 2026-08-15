@@ -17,6 +17,8 @@ Contextual.io is a proprietary AI platform for building intelligent, flow-based 
 - **Records** — instances of an Object Type or platform component
 - **Tenants** — isolated platform environments, accessed via a named config in the `ctxl` CLI
 
+**Runtime model — HTTP is the front door; the event fabric is the hallway.** HTTP agents field the outside world (browsers, webhooks, API calls) and their flows respond fast. When the system talks to itself — waking a worker, dispatching background or long-running work — that rides the platform's event layer: a record-write trigger (the platform's best "start background work" primitive) or `send-to-agent` onto an event agent's topic. Internal HTTP calls between a solution's own agents forfeit the event layer's redelivery, backlog visibility, and built-in observability. The most expensive architecture mistakes on this platform cross that one line.
+
 Do not apply assumptions from other flow-based or low-code platforms. When uncertain about platform behavior, ground answers in the docs (see `solai-knowledge` below).
 
 ---

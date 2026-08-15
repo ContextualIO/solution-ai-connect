@@ -22,15 +22,19 @@ The trigger is **intent to work on a flow**, not the literal word "edit". A requ
 
 ## Setup Check
 
-The MCP server must already be running in the user's own terminal — never start it yourself. Any process started via shell from this context is ephemeral and dies immediately.
+The Flow Editor MCP connection is typically provided by the **Ctxl Tool desktop app** (macOS and Windows): a local MCP proxy on `localhost:5051` fronting tenant-specific MCP servers the user starts and stops in the app UI. The app is also where users see and manage their CLI configs. Users without the app run the server from their own terminal instead (`ctxl mcp serve --config-id <config-id>`). Either way, the server must already be running — **never start it yourself.** Any process started via shell from this context is ephemeral and dies immediately.
+
+**Tenant-prefixed tools.** Behind the app's proxy, each running tenant server contributes tools named `mcp__ctxl-flow-editor__<tenant>__<tool>`. Match the prefix to the tenant you intend to work in. The tool list refreshes automatically as tenant servers start and stop — tools appearing or disappearing mid-session is server lifecycle, not an error. A call against a stopped tenant's prefix fails with `unknown tool`; re-orient via `list_sessions` on a live prefix instead of retrying.
 
 **If `mcp__ctxl-flow-editor__*` tools appear in the deferred tool list, the MCP server is running** — but this does not mean any flow sessions are active. Load the tool schemas and call `list_sessions` to check for live browser connections. Only proceed with flow editing if `list_sessions` returns sessions. If it returns none, the user needs to open the target flow in their browser first.
 
-If those tools are not available, tell the user to run this in their own terminal first:
+**If the expected tenant's tools are not in the tool list**, walk the recovery ladder in order:
 
-```bash
-ctxl mcp serve --config-id <config-id>
-```
+1. Ask the user to check the Ctxl Tool app: is that tenant's MCP server running? Starting it there broadcasts the tools into the session.
+2. If the server is running but its tools are missing or stale, ask the user to run `/mcp`, select the Flow Editor MCP (`localhost:5051`), and **reconnect** — this reliably refreshes the toolset.
+3. Environments without the app: the user runs `ctxl mcp serve --config-id <config-id>` in their own terminal.
+
+Ctxl Tool installs from [build-artifacts.contextual.io](https://build-artifacts.contextual.io) (macOS alternative: `brew install --cask contextualio/tap/ctxl-tool`).
 
 **Read [node-reference.md](node-reference.md) now — this is not optional.** It contains node-specific foot-gun warnings that `type_info` does not surface: e.g. `query-native-object`'s `query: ""` is a guaranteed runtime `JSON.parse("")` throw despite being the registry default (canonical match-all form is `"{}"`); the loop node has three silent setup-gates that fail to a port-0-only firing; `http-response`'s configured `statusCode` silently overrides `msg.statusCode`; Native Object nodes have TypedInput companion-field pairs that runtime Zod-rejects when absent even though `type_info` marks them `required: false`. **`type_info` reports registry defaults; `node-reference.md` warns you when those defaults will throw at runtime.** Skipping it ships silent foot-guns the runtime catches but `type_info` does not.
 
@@ -71,16 +75,35 @@ For genuinely cross-cutting queries, run multiple sources in parallel — the an
 - **Tray** (node properties panel): `tray_open`, `tray_read`, `tray_write`, `tray_commit`
 - **Code** (function/template node editors): `code_read`, `code_write`, `code_edit`, `code_grep`, `code_patch`
 
+## Tool argument discipline
+
+**Inspect the tool's parameter schema before its first use in a session — never construct a call from memory or from another session's shape.** The schemas carry the type unions, required lists, and enum values that make calls land on the first try; guessing produces silent misbehavior as often as hard errors.
+
+Many tools in this MCP surface declare parameters as required-but-nullable (`["object","null"]`, `["array","null"]`, `["integer","null"]` type unions). **When a parameter's value would be null, omit the parameter — do not pass a literal `null`.** Tool-call harnesses that encode arguments as text deliver a bare `null` as the string `"null"`: object-, array-, and number-typed parameters reject it with `Invalid input: expected <type>, received string`, while string-typed parameters silently accept `"null"` as a real string value. Omission validates where a null placeholder errors. On any `Invalid tool arguments` error, re-read the failing parameter's type union and fix by omission — do not resubmit the same shape with cosmetic variations.
+
 ## Important behaviors
 
 - **`import` is placement only — never include cross-batch wires:** Any wire targeting a node outside the imported batch is silently dropped with no error, always, regardless of whether the target exists. Do not include cross-batch wires in import payloads and "fix them if they drop" — they will always drop. Always wire after import using the `wire` tool. Intra-batch wires (both ends in the same import call) are the only wires that survive import.
 - **Navigation side-effects:** Many tools (`import`, `node_update`, `navigate`, `code_edit`, etc.) navigate the user's viewport, switch tabs, and change selection in real-time. Be deliberate — don't jump the user around unnecessarily.
 - **Concurrent editing:** The user may be editing at the same time. Warn before editing code in a node they may be actively working in.
-- **Saving:** Changes are live but not saved until the user acts. Do not remind by default — mention **Save the Flow** only when needed (before run/test/verify, or when context is unclear). The button in the Flow Editor UI is labelled **Save** — never use the word "Deploy" to refer to this action. Deploying means binding a flow to an Agent for production execution, which is a separate step.
+- **Secret- and msg-bearing surfaces — project, don't dump.** Connections (`api-configuration`) carry credential values and Agents carry env-var values; when inspecting them (via `tray_read` / `flow_read` or the CLI) request only the non-secret fields you need, and never read a secret back to "verify" a Connection or Route — test the behavior instead. The same discipline applies to msg-bearing surfaces — `log-tap` / Tenant Logs output and `ctxl agents runnerstatus` — which can carry `Authorization` headers, bodies, and PII: project to the fields you need before surfacing them into context. See `solai-cli/cli-reference.md` (secret-bearing records; Agent runtime status) and `node-reference.md` (`log-tap`).
+- **Saving:** Changes are live but not saved until the user acts. Do not remind by default — mention **Save the Flow** only when needed (before run/test/verify, or when context is unclear). The button in the Flow Editor UI is labelled **Save** — never use the word "Deploy" to refer to this action. Deploying means binding a flow to an Agent for production execution, which is a separate step. See "Saving and deploying" below.
 - **Testing:** You cannot run flows or view test results. You can create `contextual-test` nodes and `inject` nodes for manual testing.
 - **"logs"/"logger" means the debug drawer here.** In the Flow Editor, "check the logs/logger" almost always means the current session's **debug drawer** → `logger_messages` (ephemeral, editor-only). This is distinct from **Tenant Logs** (`ctxl logs` in the `solai-cli` skill — persistent, from deployed agents, CLQL-queryable). Switch to Tenant Logs only on explicit cues (agent / deployed / prod / over time / session id / query / CLQL); when context and cues conflict, ask. See `node-reference.md` → "logs" vs. "logger".
-- **One wire per output port:** Do not connect multiple wires from the same output port to different destinations. `log-tap` nodes must be wired inline (A → log-tap → B), never branched off a shared output.
+- **One wire per output port:** Do not connect multiple wires from the same output port to different destinations. `log-tap` nodes must be wired inline (A → log-tap → B), never branched off a shared output. This is a runtime rule, not a style rule: in a deployed event agent the first message to reach `contextual-end` resolves the execution and a racing branch is not guaranteed to run; on an HTTP lane, execution past the first `http-response` reaches the second terminal and produces runaway catch loops. The editor lints a warning when one output feeds multiple wires. For async side effects: respond fast, then hand off — a record-write trigger or `send-to-agent`. See `node-reference.md` → "One output, one path".
 - **Navigate before importing:** `import` always targets the active tab. Call `navigate` to switch to the correct tab before each `import`. Be aware that `tray_read`, `code_read`, `node_update`, and `navigate` with `action: "reveal"` can switch the active tab as a side-effect — re-navigate if uncertain.
+
+## Saving and deploying
+
+**Save** and **Deploy** are different actions with different blast radii.
+
+**Save** persists all *committed* editor changes as a new version of the flow record, immediately. Uncommitted tray edits are not included — commit trays first, or the save reports `no_changes`. Saving never changes what a deployed Agent runs.
+
+The `flow_save` tool performs the Save. Every save that lands writes a new flow version, so treat it as significant and durable — never call it as a reflex after routine edits. Call it only when the user asks, or under a standing grant the user gave this session (e.g. unattended iteration where saves checkpoint progress). It requires `confirm: true`, no-ops cleanly when nothing is unsaved, and returns status flags only — not the new version number; the persist completes asynchronously after the tool returns.
+
+**Deploy** pins an Agent to a flow version — the agent record's `flow` field holds `<flow-id>#<version>`. Repinning to a new version restarts the agent with a rolling restart: the new instance starts and must pass readiness before the old one stops. A restart typically takes 30–90+ seconds; npm-package-heavy flows and cold pod initialization extend it. Cron agents are not restarted on repin. Instance status and details are on the agent's **Operations** tab in the workspace UI, or via `ctxl agents instances` / `ctxl agents runnerstatus` (see `solai-cli/cli-reference.md` → "Agent runtime status" — including how to read a stuck event/cron agent).
+
+**npm packages are part of instance readiness.** A new instance is not marked ready until its function-node packages are retrieved, installed, and loaded — the main driver of restarts approaching or exceeding 90 seconds. The previous instance keeps serving until the new one is fully ready, so a live agent never runs with unloaded packages. (The Flow Editor runtime signals the same readiness with a green **flow is ready** banner — see `node-reference.md` → function nodes.)
 
 ## Sequencing rules
 
@@ -100,13 +123,30 @@ Follow these on every task:
 
 ## Editing code
 
-Use `code_edit` (find-replace) first. If a clean replace is not possible, use `code_patch` (unified diff). Use `code_write` (full replacement) only as a last resort. For rewrites of 30+ lines, tell the user first.
-
 ```
 code_read → understand content → code_edit
 ```
 
+**Always `code_read` the target field in this session before `code_edit`.** Never build an `oldString` from memory, from an earlier read, or from content you imported — the user may have edited since, and an `oldString` that doesn't match exactly fails the edit. Reading first is the single highest-leverage habit for code edits landing on the first try.
+
+Use `code_edit` (find-replace) first. If a clean replace is not possible, use `code_patch` (unified diff). Use `code_write` (full replacement) only as a last resort. For rewrites of 30+ lines, tell the user first.
+
+**`code_edit` batches are atomic — all-or-nothing.** When you pass multiple `edits`, they apply sequentially, but if any one `oldString` does not match, the **entire batch is rolled back** — none of the edits take effect, including the ones that matched. The error names the failing edit's index but does **not** state that a rollback occurred, so it can read like a partial apply. After any failed batch: `code_read` to confirm the field is unchanged, fix the offending `oldString`, and resubmit the full batch. Never assume earlier edits in a failed batch landed.
+
 Changed lines are highlighted in the editor. Do not call `tray_commit` after code edits unless the user explicitly asks — leave the tray open for review.
+
+## Searching code across nodes
+
+`code_grep` searches node code fields by regex, treating each node's field as a virtual file. **Set `searchScope` to match the question — do not default to a single node and page through the rest:**
+
+| `searchScope` | Covers | Use for |
+|---|---|---|
+| `"all"` | every eligible node across the whole flow, one call | "where is X used anywhere?" |
+| `"tab"` (`targetId` = tab id) | every node on one tab / subflow | tab-wide audits |
+| `"subflow"` (`targetId` = subflow id) | internal nodes of a subflow definition | subflow-scoped search |
+| `"node"` (`targetId` = node id) | a single node | one known node |
+
+**Find references / find callers:** grep the symbol name at `"all"` (or `"tab"`) scope — the matches include the definition *and* every call site across nodes in one pass. This is the cross-node search and usage-lookup path; firing repeated single-node `code_grep`/`code_read` passes to answer a cross-node question is the slower wrong turn. An empty `fieldSelectors` array searches the default surface (`function.func` and `template.template`); widen it to search other fields.
 
 ## Canvas positioning
 
@@ -126,7 +166,7 @@ Changed lines are highlighted in the editor. Do not call `tray_commit` after cod
 
 | Goal | Tool | Notes |
 |------|------|-------|
-| Full live field model with values | `tray_open` → `tray_read` | `tray_open` first, then `tray_read`. Resolves TypedInput state, editor values, tab associations. |
+| Full live field model with values | `tray_read` | Auto-opens the tray when needed. Resolves TypedInput state, editor values, tab associations. |
 | Raw node data without side-effects | `flow_read` with `action: "node"` | Lightweight. No tray interaction. Missing live editor values **and missing `wires` (downstream targets — both `action:"node"` and `action:"object"` omit them).** |
 | **Wire / connection audit on a single node** | **`flow_read` with `action: "tab"`, `includeNodeDetails: true`** | **Returns the full tab — pick the target node from the `nodes` array. Only path that includes `wires` per node.** |
 | Code editor content | `code_read` | Paginated. Works while expanded editor is open. |
@@ -151,7 +191,7 @@ Guidelines:
 - If a timeout occurs: split the batch and retry — no partial writes were observed; it's all-or-nothing
 - After each import, always verify `nodeCount` in the response matches the number of nodes you sent. A mismatch indicates one or more nodes were silently dropped — common causes are duplicate placeholder IDs within the batch, invalid `id` types (numeric, empty string), and malformed payload shapes. Investigate before continuing.
 - Never work from memory — always read current state before acting
-- Every tab needs error handling: catch → log-tap (error) → http-response 500 or contextual-error
+- Every tab needs error handling: catch → log-tap (error) → http-response 500 or contextual-error. `contextual-error` is an event-family terminal — it must trace back to an event route, and on an inject-driven test/scratch tab (no `contextual-start`) it draws the hard lint error `no-unconnected-event-nodes`; terminate the catch chain at the error `log-tap` there instead.
 
 ## Direct property updates
 
@@ -167,7 +207,7 @@ tray_read → tray_write (one or more calls)
 
 Only call `tray_commit` when the user explicitly asks to save or commit. Otherwise leave the tray open for review.
 
-`tray_read` does **not** auto-open the tray — always call `tray_open` first, then `tray_read`. For editable lists, prefer semantic row selectors from `tray_read(includeListItems: true)`. Treat `warningCount`/`warnings` on `tray_write` responses as a sign to re-inspect tray state before continuing.
+`tray_read` auto-opens the target tray when needed, so a separate `tray_open` first is not required. Note that switching to a different node's tray auto-commits any pending (uncommitted) edits in the currently open tray — a session-level commit, not a flow Save (nothing is lost, but the edits are committed). For editable lists, prefer semantic row selectors from `tray_read(includeListItems: true)`. Treat `warningCount`/`warnings` on `tray_write` responses as a sign to re-inspect tray state before continuing.
 
 When reading across multiple nodes, moving from tray to tray is fine. Before switching to non-tray tools on a different node, close with `tray_commit action: "cancel"` — unless you made edits, in which case leave the tray open for review.
 
@@ -199,10 +239,12 @@ Check these after mutation tool calls:
 - Double-check that `function` nodes are included at key steps around `http-get`, `http-post`, `http-put`, `http-patch`, `http-delete`
 
 ### Flow patterns
+- **HTTP is the front door; the event fabric is the hallway.** `http-in` flows serve external callers and respond fast. Work the system dispatches to itself — background jobs, long-running side effects — belongs on an event agent, reached via a record-write trigger or `send-to-agent`, never via an internal HTTP call between the solution's own agents.
+- **One web app = one HTTP flow + one agent.** A deployed HTTP agent serves one flow at one base URL; every `http-in` node is a route under that origin. Add routes to the app's flow — do not create a new HTTP flow per endpoint. See `node-reference.md` → "HTTP agents, base URLs, and routes".
 - **Event-based flows:** `contextual-start` → (nodes) → `contextual-end`
 - **HTTP flows:** `http-in` → (nodes) → `http-response`
-- Every `contextual-start` output must be wired and must eventually reach a `contextual-end`
-- Every wire path must eventually reach a terminal node
+- Every `contextual-start` output must be wired and must eventually reach a terminal node
+- **Exactly one message may reach the terminal — converge any fan-out before it.** The first message to reach a `contextual-end` ends the *whole* flow execution, so a fan-out (a `split`, or one output wired to several terminals) whose branches each reach `contextual-end` terminates on the first message and silently drops the rest. Re-collapse a fan-out to a single message (e.g. `join` in auto mode) before the terminal. See `node-reference.md` → "`split` / `join`".
 
 ### Custom node reference
 
@@ -211,7 +253,7 @@ Check these after mutation tool calls:
 | `contextual-start` | Entry point for every event-based flow (not HTTP) |
 | `contextual-end` | Terminal for every event-based flow (not HTTP) |
 | `contextual-error` | Error terminal for both event and HTTP flows |
-| `send-to-agent` | Send messages to a separate Contextual Agent/Flow |
+| `send-to-agent` | Fire-and-forget message onto an **event** agent's topic. Event agents only — an HTTP or Cron target silently receives nothing. See `node-reference.md`. |
 | `http-in` | Entry point for HTTP flows |
 | `http-response` | Terminal for HTTP flows — set status codes appropriately |
 | `log-tap` | All logging — replaces debug node entirely |
