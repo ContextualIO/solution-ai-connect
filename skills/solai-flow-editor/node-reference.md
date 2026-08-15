@@ -58,7 +58,7 @@ const probe = (root, maxDepth = 20) => {
       }
       const keys = Object.keys(v);
       if (d <= 0) { truncated++; return "object{" + keys.length + " keys} ...(+depth)"; }
-      const o = {};
+      const o = Object.create(null);             // null-proto: records an own "__proto__" key instead of dropping it
       for (const k of keys) o[k] = walk(v[k], d - 1, seen);
       return o;
     } finally {
