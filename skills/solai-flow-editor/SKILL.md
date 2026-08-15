@@ -244,7 +244,7 @@ Check these after mutation tool calls:
 - **Event-based flows:** `contextual-start` → (nodes) → `contextual-end`
 - **HTTP flows:** `http-in` → (nodes) → `http-response`
 - Every `contextual-start` output must be wired and must eventually reach a terminal node
-- **Exactly one message may reach the terminal — converge any fan-out before it.** The first message to reach a `contextual-end` ends the *whole* flow execution, so a fan-out (a `split`, a `loop` without a feedback wire, or one output wired to several terminals) whose branches each reach `contextual-end` terminates on the first message and silently drops the rest. Re-collapse a fan-out to a single message (e.g. `join` in auto mode) before the terminal. See `node-reference.md` → "`split` / `join`".
+- **Exactly one message may reach the terminal — converge any fan-out before it.** The first message to reach a `contextual-end` ends the *whole* flow execution, so a fan-out (a `split`, or one output wired to several terminals) whose branches each reach `contextual-end` terminates on the first message and silently drops the rest. Re-collapse a fan-out to a single message (e.g. `join` in auto mode) before the terminal. See `node-reference.md` → "`split` / `join`".
 
 ### Custom node reference
 

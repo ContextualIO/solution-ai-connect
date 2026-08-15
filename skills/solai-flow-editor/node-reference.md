@@ -8,7 +8,7 @@ Node-specific configuration, rules, and patterns for the Contextual Flow Editor.
 
 `log-tap` replaces the `debug` node entirely. The `debug` node is **deprecated and non-functional** — never suggest or create debug nodes.
 
-**Do not log a whole `msg` (or `msg.req`, or an upstream response object).** Whatever a `log-tap` receives is serialized verbatim into Tenant Logs and the Flow Editor debug drawer with **no platform-side redaction** — a full `msg` carries headers including `Authorization`, and request/response objects carry bodies and cookies. All of that then persists and can be surfaced later to a human or an AI. Log keys and shapes, not whole objects; a `catch` handler should log a projected error summary (message, code, the fields you need), never the raw error `msg`. This is the emission side of the same discipline `ctxl logs` and `runnerstatus` carry on the consumption side.
+**Log what you deliberately select — not the whole message.** A `log-tap` serializes whatever it receives verbatim into Tenant Logs and the Flow Editor debug drawer with **no platform-side redaction**. Logging chosen fields — even many of them — is fine: you picked them, so you know what's in them. The risk is the *wholesale* dump (`outputPropertyType: "full"`, or the entire `msg` / a raw response object): it captures everything indiscriminately, including `Authorization` headers, cookies, and any PII sitting in the parts you weren't looking at, and all of it then persists and can be surfaced later to a human or an AI. When you need to understand an unknown or poorly-documented response's structure, **profile its shape** (see below) instead of dumping its values — you get the whole structure without any of the content. This is the emission side of the discipline `ctxl logs` and `runnerstatus` carry on the consumption side.
 
 Available levels (confirmed from live tray — `type_info` does not enumerate these): `debug`, `info`, `warn`, `error`
 
@@ -23,24 +23,54 @@ Default configuration:
 }
 ```
 
-In a `catch` error handling context:
+In a `catch` error handling context, log the error itself (a selected field), not the whole message:
 ```json
 {
   "level": "error",
-  "outputProperty": "",
-  "outputPropertyType": "full"
+  "outputProperty": "error",
+  "outputPropertyType": "msg"
 }
 ```
 
-When logging the full `msg` object:
-```json
-{
-  "outputProperty": "",
-  "outputPropertyType": "full"
-}
+(`outputPropertyType: "full"` — logging the entire `msg` — is the wholesale case called out above; to understand an unknown response's structure, **profile its shape** (next) instead of dumping its values.)
+
+`log-tap` nodes must be inline on the flow (A → log-tap → B), never dangling off to the side as a leaf. The one exception is an error `log-tap` terminating a `catch` chain on an inject-driven test/scratch tab that has no event route to a `contextual-error` terminal (see `SKILL.md` → flow patterns).
+
+### Profiling a response or message shape
+
+When a call or upstream node returns something whose structure you don't fully know — a third-party HTTP response with thin or missing documentation, or any upstream node whose output you haven't mapped — the fast way to get oriented is to see the **whole shape at once**, rather than guessing at one field and re-probing. Do it safely by logging the *shape* (keys, types, array lengths) instead of the values. Drop a `function` node after the call:
+
+```javascript
+// shape probe: keys + types, no values. Walks the full tree in one pass.
+const probe = (root, maxDepth = Infinity) => {
+  let truncated = 0;
+  const walk = (v, d, seen) => {
+    if (v === null) return "null";
+    if (typeof v !== "object") return typeof v;
+    if (typeof Buffer !== "undefined" && Buffer.isBuffer(v)) return "Buffer[" + v.length + "]";
+    if (seen.has(v)) return "[circular]";
+    seen.add(v);
+    if (Array.isArray(v)) {
+      if (!v.length) return "array[0]";
+      if (d <= 0) { truncated++; return "array[" + v.length + "] ...(+depth)"; }
+      return [walk(v[0], d - 1, seen), "len=" + v.length];
+    }
+    const keys = Object.keys(v);
+    if (d <= 0) { truncated++; return "object{" + keys.length + " keys} ...(+depth)"; }
+    const o = {};
+    for (const k of keys) o[k] = walk(v[k], d - 1, seen);
+    return o;
+  };
+  const tree = walk(root, maxDepth, new WeakSet());
+  return { complete: truncated === 0, truncatedNodes: truncated, tree };
+};
+msg.shape = probe(msg.payload);   // whole tree, one pass; probe(msg) for the full envelope
+return msg;
 ```
 
-`log-tap` nodes must always be inline on the flow (A → log-tap → B), never dangling off to the side.
+Then a `log-tap` on `msg.shape`. Every value is replaced by its type, so an `authorization` header shows as `"string"` — you learn the field exists without leaking the token. There are no values in the output, so it is safe to log.
+
+**One pass, full tree.** By default the probe walks all the way down and returns `complete: true` — every key name at every level, in a single run. Going full-depth is safe because the output holds only types, so its size tracks the *structure*, not the data; the circular guard (`WeakSet`) keeps it from chasing cycles like `msg.req` / `msg.res`. For an unusually large object you can pass a depth to take a shallow look first — `probe(msg.payload, 3)` — and then `complete: false` with `truncatedNodes: N` reports how many branches were cut (each marked ` ...(+depth)`, e.g. `"headers": "object{28 keys} ...(+depth)"`) so you know where to go deeper. Arrays are sampled: `["<element shape>", "len=42"]` shows the element's shape and the count without repeating it 42 times. Once the shape shows where the field you want lives, read that value directly and selectively — you no longer need the whole object.
 
 ---
 
@@ -530,7 +560,7 @@ Wiring a single node output to two paths (respond to the caller on one, do side 
 
 **The first message to reach a `contextual-end` ends the entire flow execution.** A `split` emits N independent in-flight messages; if each branch reaches a `contextual-end`, the first to arrive terminates the flow and the remaining branches' in-flight work (e.g. per-item `create-native-object` calls) is silently dropped. The flow `validate`s clean, and **this does not reproduce in the Flow Editor preview** — it only drops data in a deployed agent. A per-item fan-out must **re-collapse to a single message before any terminal**:
 
-```
+```text
 split → per-item work → join (auto) → single contextual-end
 ```
 
@@ -548,9 +578,9 @@ split → per-item work → join (auto) → single contextual-end
 
 ### `join` configuration & behavior
 
-- `mode`: **`auto`** (reverse a `split` via `parts` — the default, and the convergence answer), **`custom`** (the config value; the editor UI labels it "manual") — `build`: `string`/`buffer`/`array`/`object`/`merged`, combine by `joiner`/`count`/`key`, and **`reduce`** (JSONata accumulate). Set `mode: "custom"` in the import payload — `"manual"` is not a valid config value and silently falls back to `auto`.
+- `mode`: three values — **`auto`** (reverse a `split` via `parts` — the default, and the convergence answer), **`custom`** (the config value; the editor UI labels it "manual") with `build`: `string`/`buffer`/`array`/`object`/`merged` and combine by `joiner`/`count`/`key`, and **`reduce`** (a separate mode; JSONata accumulate). Set `mode: "custom"` in the import payload — `"manual"` is not a valid config value and silently falls back to `auto`.
 - **`auto` requires `msg.parts.id`** on incoming messages. If an intermediate node rebuilds `msg` wholesale and drops `parts`, auto-join cannot complete (it warns *"cannot join in 'auto' mode"*). Preserve `parts` through the per-item chain — mutate `msg.payload` and `return msg`; don't replace the whole object.
-- **`auto` mode has no timeout.** A stuck auto-join (e.g. a partial sequence) clears only via `msg.complete` (force-send the partial) or `msg.reset` (discard the partial) — and in auto mode that control message must itself carry `msg.parts.id`, since auto-join drops any incoming message lacking it. A configurable `count`/`timeout` exists **only in `custom` mode**.
+- **`auto` mode has no timeout.** A stuck auto-join (e.g. a partial sequence) clears via `msg.reset` — a bare reset with no `parts` discards **all** in-flight groups — or `msg.complete` (force-send the partial; in auto mode the complete message must itself carry `msg.parts.id` to target its group, since auto-join drops a message lacking it). A configurable `count`/`timeout` exists **only in `custom` mode**.
 
 ### When to use which
 
