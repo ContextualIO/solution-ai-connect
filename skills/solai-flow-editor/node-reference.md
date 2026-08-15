@@ -41,36 +41,40 @@ In a `catch` error handling context, log the error itself (a selected field), no
 When a call or upstream node returns something whose structure you don't fully know — a third-party HTTP response with thin or missing documentation, or any upstream node whose output you haven't mapped — the fast way to get oriented is to see the **whole shape at once**, rather than guessing at one field and re-probing. Do it safely by logging the *shape* (keys, types, array lengths) instead of the values. Drop a `function` node after the call:
 
 ```javascript
-// shape probe: keys + types, no values. Walks the full tree in one pass.
-const probe = (root, maxDepth = Infinity) => {
+// shape probe: keys + types, no values. One pass, depth-limited (default 20).
+const probe = (root, maxDepth = 20) => {
   let truncated = 0;
   const walk = (v, d, seen) => {
     if (v === null) return "null";
     if (typeof v !== "object") return typeof v;
     if (typeof Buffer !== "undefined" && Buffer.isBuffer(v)) return "Buffer[" + v.length + "]";
-    if (seen.has(v)) return "[circular]";
+    if (seen.has(v)) return "[circular]";        // v is an ancestor on this path -> real cycle
     seen.add(v);
-    if (Array.isArray(v)) {
-      if (!v.length) return "array[0]";
-      if (d <= 0) { truncated++; return "array[" + v.length + "] ...(+depth)"; }
-      return [walk(v[0], d - 1, seen), "len=" + v.length];
+    try {
+      if (Array.isArray(v)) {
+        if (!v.length) return "array[0]";
+        if (d <= 0) { truncated++; return "array[" + v.length + "] ...(+depth)"; }
+        return [walk(v[0], d - 1, seen), "len=" + v.length];
+      }
+      const keys = Object.keys(v);
+      if (d <= 0) { truncated++; return "object{" + keys.length + " keys} ...(+depth)"; }
+      const o = {};
+      for (const k of keys) o[k] = walk(v[k], d - 1, seen);
+      return o;
+    } finally {
+      seen.delete(v);                            // leave the path: a shared but non-cyclic ref isn't a cycle
     }
-    const keys = Object.keys(v);
-    if (d <= 0) { truncated++; return "object{" + keys.length + " keys} ...(+depth)"; }
-    const o = {};
-    for (const k of keys) o[k] = walk(v[k], d - 1, seen);
-    return o;
   };
   const tree = walk(root, maxDepth, new WeakSet());
   return { complete: truncated === 0, truncatedNodes: truncated, tree };
 };
-msg.shape = probe(msg.payload);   // whole tree, one pass; probe(msg) for the full envelope
+msg.shape = probe(msg.payload);   // depth 20; probe(msg.payload, Infinity) or a larger number to go deeper
 return msg;
 ```
 
-Then a `log-tap` on `msg.shape`. Every value is replaced by its type, so an `authorization` header shows as `"string"` — you learn the field exists without leaking the token. There are no values in the output, so it is safe to log.
+Then a `log-tap` on `msg.shape`. Every *value* is replaced by its type, so an `authorization` header shows as `"string"` — you learn the field exists without leaking the token. The output carries no values, which is what makes it safe to log. The one thing it does preserve is **key names**: usually that is exactly what you're after, but when data is keyed by the sensitive value itself — a map keyed by email address, account ID, phone number, or token (`{ "person@example.com": {...} }`, `{ "sk-live-...": {...} }`) — those keys appear verbatim. If you're profiling a system whose keys may themselves be sensitive, exercise further caution. Whether PII or auth material may be logged at all is a call for the developer and their business context, not one the probe (or this guidance) makes for you — the probe only narrows the exposure from values to keys, and describing that risk is as far as we go.
 
-**One pass, full tree.** By default the probe walks all the way down and returns `complete: true` — every key name at every level, in a single run. Going full-depth is safe because the output holds only types, so its size tracks the *structure*, not the data; the circular guard (`WeakSet`) keeps it from chasing cycles like `msg.req` / `msg.res`. For an unusually large object you can pass a depth to take a shallow look first — `probe(msg.payload, 3)` — and then `complete: false` with `truncatedNodes: N` reports how many branches were cut (each marked ` ...(+depth)`, e.g. `"headers": "object{28 keys} ...(+depth)"`) so you know where to go deeper. Arrays are sampled: `["<element shape>", "len=42"]` shows the element's shape and the count without repeating it 42 times. Once the shape shows where the field you want lives, read that value directly and selectively — you no longer need the whole object.
+**One pass, and it tells you if it stopped.** The default walks 20 levels deep — enough that essentially any real response or message envelope comes back `complete: true`, every key name at every level, in a single run. The cap is a guardrail against a pathologically deep or self-referential payload, not something you'll normally hit; when a shape *is* deeper than the limit, `complete: false` and `truncatedNodes: N` report how many branches were cut (each marked `...(+depth)`, e.g. `"headers": "object{28 keys} ...(+depth)"`), so you re-run with more depth — `probe(msg.payload, 60)`, or `probe(msg.payload, Infinity)` if you truly want no limit. You can also go the other way for a quick shallow look first: `probe(msg.payload, 3)`. The output holds only types, so its size tracks *structure*, not data; the path-tracking circular guard follows only the current ancestor chain, so it flags a genuine cycle like `msg.req` / `msg.res` while an object that simply appears in two sibling branches is still shown normally. Arrays are sampled: `["<element shape>", "len=42"]` shows the element's shape and the count without repeating it 42 times. Once the shape shows where the field you want lives, read that value directly and selectively — you no longer need the whole object.
 
 ---
 
