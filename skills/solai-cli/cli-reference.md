@@ -31,6 +31,8 @@ ctxl records list --type flow \
 
 Available on every list topic: `records list`, `types list`, `recordversions list`, `recordaudittrail list`, `services list`, `servicereleases list`. Reach for `--fields` first when a list call would otherwise drag inline `data` blocks or full record bodies into context.
 
+> **`records query` does not accept `--fields`.** Projection is a *list*-topic flag only — `ctxl records query native-object:<type-id> --fields id` fails with `Error: Nonexistent flag: --fields` (verified on CLI 0.13.0). `query` does take the pagination flags (`--page-size`, `--page-token`, `--include-total`, `--export`, `--progress`), which makes the absence of `--fields` easy to miss. To bound a query's payload, page it and project client-side.
+
 > **Secret-bearing records — project, don't dump.** Connections (`api-configuration`) carry credential values, and Agents carry environment-variable values — treat all of these as secrets, and don't infer how they're stored from record metadata (an empty `_metaData.secrets` array is not evidence of an inline or less-protected credential). Inspect them with a projected `list` query, requesting only the non-secret fields you need (a Connection's id / name / provider / endpoint; an Agent's env-var labels), so secret values never enter the session. Never read a secret back to "verify" a Connection or AI Route — test the behavior instead — and never ask the user to paste a secret into the chat; secrets belong only in the platform's credential / env-var fields. See the secret-handling hard rule in [SKILL.md](SKILL.md#hard-rules).
 
 ## Config
@@ -574,10 +576,14 @@ These built-in types are managed via `ctxl records` commands:
 |---------|-------------|
 | `flow` | Flow definitions |
 | `agent` | Agent definitions |
-| `api-configuration` | Connections |
+| `api-configuration` | Connections — **primary key is `apiId`, not `id`** (see note below) |
 | `ai-route` | AI routing configuration |
 | `authorization-code-app` | OAuth app config |
 | `jwks-configuration` | JWKS / key config |
+
+> **Connections key on `apiId`.** `api-configuration` is the one platform type whose `primaryKey` is not `id`. Its required fields are `type`, `name`, `apiId`; authoring a record with `"id"` is the natural mistake because every other native-object type in this reference keys on `id`.
+>
+> A `type: "public"` Connection needs only `{apiId, name, type, endpoint}` and declares **no secret fields at all**, so keyless Connections (public APIs, RSS feeds) can be created via `ctxl records add --type api-configuration` with no credential entering the session. Connections carrying a credential (`bearer`, `basic`, `client-grant`, …) should still be created in the workspace UI — see the secret-handling hard rule in [SKILL.md](SKILL.md#hard-rules).
 
 Get the full schema for any platform type before creating or replacing records:
 

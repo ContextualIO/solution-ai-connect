@@ -265,16 +265,32 @@ Always use `type_info` to confirm the full property shape before importing any N
 
 Several fields on these nodes are **TypedInputs** — a string value whose runtime interpretation depends on a `*Type` companion field that's declared as a separate property in `type_info`. The companion is what the visible icon-toggle in the editor sets (e.g. the `{}` / `J:` / `msg.` dropdown next to the Query field on `query-native-object`).
 
-**Always set both halves of any TypedInput pair explicitly on import.** Don't rely on the default for either side — `type_info` exposes both the value field and its companion separately, and the safe pattern is to fetch `type_info` and copy both into the import payload. The companion may be reported as `required: false` with a non-empty default, but the runtime Zod schema rejects the node when the companion is absent — treat both halves as effectively required.
+**Always set both halves of any TypedInput pair that actually exists on the node.** Not every `*Property` field has a companion — see the caveat under the table. Don't rely on the default for either side — `type_info` exposes both the value field and its companion separately, and the safe pattern is to fetch `type_info` and copy both into the import payload. The companion may be reported as `required: false` with a non-empty default, but the runtime Zod schema rejects the node when the companion is absent — treat both halves as effectively required.
 
 Common TypedInput pairs on Native Object nodes:
 
 | Value field | Companion | Effect of companion value |
 |---|---|---|
 | `query` (on `query-native-object`) | `queryType` | `json` (default) → value parsed as a JSON string at evaluation; `expression` → value evaluated as a JSONata expression against `msg`; `msg` → value is a `msg` property path |
-| `outputProperty` | `outputPropertyType` | `msg` (typical) → write result to that msg property; `flow`/`global` for context state |
 | `typeId` | `typeIdType` | `notype` (default, typical) → literal type id; `msg`/`str`/etc. for indirected lookup |
 | `pageSize` | `pageSizeType` | `num` (typical) → numeric literal; `msg`/`str`/etc. for indirected lookup |
+| `property` | `propertyType` | `msg` (typical) → read the input from that msg property |
+| `objectId` | `objectIdType` | **`str` is the default on `delete-native-object`** — left unset it looks for a record whose literal id is the string `"payload.id"`. Set `msg` for a msg-path lookup. |
+
+> **`outputProperty` has no companion on these nodes — do not ship one.** `outputPropertyType` exists on `log-tap` only. Verified via `type_info` (plugin 0.7.6):
+>
+> | Node | `outputPropertyType`? | `propertyType`? |
+> |---|---|---|
+> | `log-tap` | yes | n/a |
+> | `query-native-object` | **no** | n/a |
+> | `create-native-object` | **no** | yes |
+> | `patch-native-object` / `put-native-object` | **no** | yes |
+> | `import-native-objects` | **no** | **no** |
+> | `http-get` | **no** | n/a |
+> | `http-post` | **no** | yes |
+> | `ai-generate` | **no** | yes |
+>
+> The runtime Zod schema rejects a node carrying a property the type does not declare, so an invented `outputPropertyType` fails the node just as surely as a missing companion does. Fetch `type_info` and copy only the fields it lists.
 
 ### Reserved `msg` keys override Native Object node configuration
 
