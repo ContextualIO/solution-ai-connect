@@ -271,10 +271,13 @@ Common TypedInput pairs on Native Object nodes:
 
 | Value field | Companion | Effect of companion value |
 |---|---|---|
-| `query` (on `query-native-object`) | `queryType` | `json` (default) → value parsed as a JSON string at evaluation; `expression` → value evaluated as a JSONata expression against `msg`; `msg` → value is a `msg` property path |
-| `outputProperty` | `outputPropertyType` | `msg` (typical) → write result to that msg property; `flow`/`global` for context state |
+| `query` (on `query-native-object`) | `queryType` | `json` (default) → value parsed as a JSON string at evaluation; `jsonata` → value evaluated as a JSONata expression against `msg`; `msg` → value is a `msg` property path |
 | `typeId` | `typeIdType` | `notype` (default, typical) → literal type id; `msg`/`str`/etc. for indirected lookup |
 | `pageSize` | `pageSizeType` | `num` (typical) → numeric literal; `msg`/`str`/etc. for indirected lookup |
+
+**Use the stored config value, not the editor label.** The Query field's dropdown shows `{}` (JSON), `J:` (JSONata), and `msg.`. The stored `queryType` values are `json`, `jsonata`, and `msg`. Use only these three; there is no `expression` value. An unrecognized value saves and deploys without error, then fails every message with `Invalid option: expected one of …` on `queryType`.
+
+**`outputProperty` and `responseProperty` have no companion field on Native Object nodes.** Both take a `msg` path only, and the node always writes to `msg`. Do not set `outputPropertyType`. The node ignores it, so `flow` or `global` will not write to context. Some other nodes, such as `log-tap`, do have an `outputPropertyType` field.
 
 ### Reserved `msg` keys override Native Object node configuration
 
@@ -307,6 +310,8 @@ Distinct from `search-native-object` (above). Both query records of an Object Ty
 **`query: ""` is a foot-gun.** The default value of the `query` field per `type_info` is the empty string. With `queryType: "json"` (the typical mode), runtime calls `JSON.parse("")` and throws `SyntaxError: Unexpected end of JSON input` at every invocation — there is no platform round-trip and no opportunity for the platform to interpret `""` as "no filter". The canvas widget shows a red triangle on initial paint but the warning **clears on user interaction with the node** and is not surfaced by `validate` or `flow_read` — a node can pass all validation surfaces and still be guaranteed to throw at runtime.
 
 **The canonical "match all records" form (when `queryType: "json"`) is the literal two-character string `"{}"`.** Set this explicitly on import; do not ship the default.
+
+**A `jsonata` query can silently match every record.** JSONata drops any object key whose value is undefined. If the expression reads a `msg` value that is missing, that condition disappears from the query. For example, `{"$.id": req.query.id}` becomes `{}` when the request has no `id`, and `{}` matches all records. Before the query, check that every value the expression reads is present. For example, use a `switch` node that sends missing values to an error path. This matters most when the results feed a delete, patch, or other write.
 
 **Page size controls the output shape.** For the normal, non-source output mode:
 

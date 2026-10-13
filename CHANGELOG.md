@@ -4,6 +4,17 @@ All notable changes to the Solution AI Connect plugin are documented in this fil
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.7] — 2026-10-13
+
+### Fixed
+
+- **`queryType` values on `query-native-object`.** The node reference listed `expression` as the JSONata mode. The stored value is `jsonata`. A flow that uses `expression` saves and deploys without error, then fails every message at runtime. The reference now lists the three stored values (`json`, `jsonata`, `msg`) and explains how they differ from the editor labels.
+- **Removed `outputPropertyType` from the Native Object TypedInput table.** Native Object nodes have no such field. `outputProperty` and `responseProperty` take a `msg` path only, and the node ignores `outputPropertyType`.
+
+### Added
+
+- **Warning: a `jsonata` query can silently match every record.** JSONata drops object keys whose value is undefined. A missing `msg` value removes its condition from the query, and the query can become `{}`. Check the inputs before the query, especially when the results feed a delete or patch.
+
 ## [0.7.6] — 2026-08-14
 
 A broad hardening pass across the flow-editor and CLI skills: safer flow topology (fan-out convergence, the racing-branch trap, HTTP-vs-event roles), object-type authoring, `send-to-agent` semantics, the Save-vs-Deploy lifecycle, the Ctxl Tool desktop app as the MCP-management surface, tool-argument discipline, and several corrections to guidance that had drifted from platform behavior. Also documents the `@contextual-io/cli` 0.13.0 `agentmeta` surface (agent sizes, images, npm allow-list), how npm-package readiness affects Flow Editor and agent startup, and the `agents instances` / `runnerstatus` surface for troubleshooting stuck event/cron agents. Primary tickets: CTX-3583, CTX-3585, CTX-3591, CTX-3547, CTX-3555, CTX-3556, CON-273, CON-459, CON-460, CON-462, CON-464, CON-465, CON-466, CON-467, CON-468, CON-469, CON-470, CON-471, CON-472, CON-474, CTX-3570.
