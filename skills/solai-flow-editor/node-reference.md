@@ -277,7 +277,7 @@ Common TypedInput pairs on Native Object nodes:
 
 **Use the stored config value, not the editor label.** The Query field's dropdown shows `{}` (JSON), `J:` (JSONata), and `msg.`. The stored `queryType` values are `json`, `jsonata`, and `msg`. Use only these three; there is no `expression` value. An unrecognized value saves and deploys without error, then fails every message with `Invalid option: expected one of …` on `queryType`.
 
-**`outputProperty` and `responseProperty` have no companion field on Native Object nodes.** Both take a `msg` path only, and the node always writes to `msg`. Do not set `outputPropertyType`. The node ignores it, so `flow` or `global` will not write to context. Some other nodes, such as `log-tap`, do have an `outputPropertyType` field.
+**`outputProperty` and `responseProperty` have no companion field on Native Object nodes.** They name properties on the message, never flow or global context. In normal output mode, both take a `msg` property path. With **Unfold all pages to source** enabled on `query-native-object` or `search-native-object`, `outputProperty` is a literal top-level key, not a path, and `responseProperty` is not set. Do not set `outputPropertyType` or `responsePropertyType`. The node silently drops these fields, so they cause no error and do not redirect output. Some other nodes, such as `log-tap`, do have an `outputPropertyType` field.
 
 ### Reserved `msg` keys override Native Object node configuration
 
@@ -331,7 +331,7 @@ For page sizes of `2` or greater, `includeTotal: true` adds a top-level `totalCo
 - Target the inner array on the loop: `enumeration: "payload.items"` (with `enumerationType: "msg"`)
 - Or insert an unwrap function between query and loop: `msg.payload = msg.payload.items; return msg;`
 
-When **Unfold all pages to source** is enabled, the normal output table does not apply: each emitted message carries one record at the configured output path regardless of page size.
+When **Unfold all pages to source** is enabled, the normal output table does not apply: each emitted message carries one record regardless of page size. In this mode, `outputProperty` is a literal top-level key, not a path. `data.record` creates `msg["data.record"]`, not `msg.data.record`, so use a top-level name such as `payload`. `responseProperty` is not set in this mode.
 
 See the Loop node section's silent-failure list for the generic diagnostic recipe.
 

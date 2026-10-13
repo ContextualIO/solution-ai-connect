@@ -9,7 +9,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ### Fixed
 
 - **`queryType` values on `query-native-object`.** The node reference listed `expression` as the JSONata mode. The stored value is `jsonata`. A flow that uses `expression` saves and deploys without error, then fails every message at runtime. The reference now lists the three stored values (`json`, `jsonata`, `msg`) and explains how they differ from the editor labels.
-- **Removed `outputPropertyType` from the Native Object TypedInput table.** Native Object nodes have no such field. `outputProperty` and `responseProperty` take a `msg` path only, and the node ignores `outputPropertyType`.
+- **Removed `outputPropertyType` from the Native Object TypedInput table.** Native Object nodes have no such field. They write `outputProperty` and `responseProperty` to the message, never to flow or global context, and silently drop `outputPropertyType`.
+- **Source-mode output key.** With **Unfold all pages to source** enabled, `outputProperty` is a literal top-level key, not a path, and `responseProperty` is not set. The Query Object section now says so instead of "the configured output path."
 
 ### Added
 
