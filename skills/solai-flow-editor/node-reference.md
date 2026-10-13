@@ -271,10 +271,13 @@ Common TypedInput pairs on Native Object nodes:
 
 | Value field | Companion | Effect of companion value |
 |---|---|---|
-| `query` (on `query-native-object`) | `queryType` | `json` (default) → value parsed as a JSON string at evaluation; `expression` → value evaluated as a JSONata expression against `msg`; `msg` → value is a `msg` property path |
-| `outputProperty` | `outputPropertyType` | `msg` (typical) → write result to that msg property; `flow`/`global` for context state |
+| `query` (on `query-native-object`) | `queryType` | `json` (default) → value parsed as a JSON string at evaluation; `jsonata` → value evaluated as a JSONata expression against `msg`; `msg` → value is a `msg` property path |
 | `typeId` | `typeIdType` | `notype` (default, typical) → literal type id; `msg`/`str`/etc. for indirected lookup |
 | `pageSize` | `pageSizeType` | `num` (typical) → numeric literal; `msg`/`str`/etc. for indirected lookup |
+
+**Use the stored config value, not the editor label.** The Query field's dropdown shows `{}` (JSON), `J:` (JSONata), and `msg.`. The stored `queryType` values are `json`, `jsonata`, and `msg`. Use only these three; there is no `expression` value. An unrecognized value saves and deploys without error, then fails every message with `Invalid option: expected one of …` on `queryType`.
+
+**`outputProperty` and `responseProperty` have no companion field on Native Object nodes.** They name properties on the message, never flow or global context. In normal output mode, both take a `msg` property path. With **Unfold all pages to source** enabled on `query-native-object` or `search-native-object`, `outputProperty` is a literal top-level key, not a path, and `responseProperty` is not set. Do not set `outputPropertyType` or `responsePropertyType`. The node silently drops these fields, so they cause no error and do not redirect output. Some other nodes, such as `log-tap`, do have an `outputPropertyType` field.
 
 ### Reserved `msg` keys override Native Object node configuration
 
@@ -308,6 +311,8 @@ Distinct from `search-native-object` (above). Both query records of an Object Ty
 
 **The canonical "match all records" form (when `queryType: "json"`) is the literal two-character string `"{}"`.** Set this explicitly on import; do not ship the default.
 
+**A `jsonata` query can silently match every record.** JSONata drops any object key whose value is undefined. If the expression reads a `msg` value that is missing, that condition disappears from the query. For example, `{"$.id": req.query.id}` becomes `{}` when the request has no `id`, and `{}` matches all records. Before the query, check that every value the expression reads is present. For example, use a `switch` node that sends missing values to an error path. This matters most when the results feed a delete, patch, or other write.
+
 **Page size controls the output shape.** For the normal, non-source output mode:
 
 | Page size | Matches     | Output                                 |
@@ -326,7 +331,7 @@ For page sizes of `2` or greater, `includeTotal: true` adds a top-level `totalCo
 - Target the inner array on the loop: `enumeration: "payload.items"` (with `enumerationType: "msg"`)
 - Or insert an unwrap function between query and loop: `msg.payload = msg.payload.items; return msg;`
 
-When **Unfold all pages to source** is enabled, the normal output table does not apply: each emitted message carries one record at the configured output path regardless of page size.
+When **Unfold all pages to source** is enabled, the normal output table does not apply: each emitted message carries one record regardless of page size. In this mode, `outputProperty` is a literal top-level key, not a path. `data.record` creates `msg["data.record"]`, not `msg.data.record`, so use a top-level name such as `payload`. `responseProperty` is not set in this mode.
 
 See the Loop node section's silent-failure list for the generic diagnostic recipe.
 
