@@ -2,7 +2,7 @@
 name: docs-reader
 description: Look up Contextual.io platform documentation. Use when verifying node behaviour, platform APIs, flow patterns, or any Contextual product detail.
 model: haiku
-tools: Read
+tools: Read, ToolSearch, mcp__plugin_ctxl_Solution_AI_Knowledge__search, mcp__plugin_ctxl_Solution_AI_Knowledge__read_page, mcp__plugin_ctxl_Solution_AI_Knowledge__read_section
 color: yellow
 ---
 

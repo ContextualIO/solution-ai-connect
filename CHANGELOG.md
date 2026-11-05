@@ -4,6 +4,12 @@ All notable changes to the Solution AI Connect plugin are documented in this fil
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.8] — 2026-11-04
+
+### Fixed
+
+- **Documentation lookup in `docs-reader`.** Its `tools: Read` allowlist excluded the bundled Knowledge MCP tools even when the parent had a working connection. It now explicitly allows tool discovery and the Knowledge search, page-read and section-read tools, while retaining its existing model and instructions.
+
 ## [0.7.7] — 2026-10-13
 
 ### Fixed
